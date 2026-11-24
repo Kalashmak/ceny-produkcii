@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Цены на продукцию — обновления</title>
+<style>
+body{margin:0;background:#f3f5f9;color:#152033;font:15px/1.55 "Segoe UI",system-ui,sans-serif}
+main{max-width:640px;margin:0 auto;padding:48px 20px}
+h1{font-size:24px;margin:0 0 8px}
+p{color:#4c5870}
+code{background:#e8ecf4;padding:1px 6px;border-radius:6px}
+</style>
+</head>
+<body>
+<main>
+<h1>Цены на продукцию</h1>
+<p>Отсюда программа «Цены на продукцию» скачивает обновления кода: <code>version.json</code> и <code>app.js</code>.</p>
+<p>Данных здесь нет: оклады, цены и калькуляции хранятся только в файле программы и в браузере пользователя.</p>
+<p id="v"></p>
+</main>
+<script>
+fetch('version.json',{cache:'no-store'}).then(r=>r.json()).then(v=>{ document.getElementById('v').textContent='Текущая версия: '+v.version+' от '+v.built.split('-').reverse().join('.')+(v.notes?'. '+v.notes:''); }).catch(()=>{});
+</script>
+</body>
+</html>

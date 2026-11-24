@@ -1,0 +1,29 @@
+/* Общая тема всех разделов программы «Цены на продукцию» */
+:root{
+  --bg:#f3f5f9; --panel:#fff; --ink:#152033; --muted:#64708a; --line:#e3e7ef; --soft:#f7f8fb;
+  --accent:#2f5bd8; --accent-soft:#ebf0ff; --ok:#16804a; --ok-soft:#e7f6ee;
+  --warn:#a35a00; --warn-soft:#fff5e6; --err:#c42b33; --err-soft:#fdecec; --radius:14px;
+}
+body{font:14px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.card{border-color:var(--line);box-shadow:0 1px 2px rgba(20,32,60,.04),0 2px 8px rgba(20,32,60,.03)}
+.btn{border-radius:10px;transition:background .15s,border-color .15s,box-shadow .15s}
+.btn:hover{background:var(--soft)}
+.btn.pri{box-shadow:0 1px 2px rgba(47,91,216,.3)}
+.btn.pri:hover{background:#2850c4}
+input[type=text],input[type=number],input[type=date],select,textarea{border-radius:9px;border-color:#d4d9e3;transition:border-color .15s,box-shadow .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,91,216,.15)}
+th{text-transform:none;letter-spacing:.01em;background:#f6f7fa}
+tbody tr.click:hover td{background:#f4f7ff}
+dialog{border-radius:16px;box-shadow:0 24px 70px rgba(15,25,45,.28)}
+dialog::backdrop{background:rgba(18,26,42,.42);backdrop-filter:blur(2px)}
+.msg{border-radius:10px}
+.stat b{font-size:24px;letter-spacing:-.01em}
+.banner{gap:12px}
+.banner.zpt{background:#fff4e2;color:#7a4300;border-bottom:1px solid #f1d39f}
+.banner .bi{display:inline-grid;place-items:center;min-width:30px;height:24px;border-radius:7px;background:#ffd58a;color:#6b3a00;font-weight:700;font-size:12px}
+.badge.err{animation:none}
+/* внутри общей программы: своя шапка раздела становится второй строкой меню */
+html.embed header{height:48px;background:var(--panel);box-shadow:0 1px 0 var(--line)}
+html.embed header h1{display:none}
+html.embed main{padding-top:18px}
+html.embed nav button{font-size:14px}

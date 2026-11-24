@@ -1,0 +1,5 @@
+# файл программы с данными собирается в ../ceny-produkcii-dannye и сюда не попадает
+*.json.bak
+__pycache__/
+Цены на продукцию.html
+seed_*.json

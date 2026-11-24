@@ -1,0 +1,1140 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Сдельные расценки — цех 2</title>
+<style>
+:root{
+  --bg:#f4f5f7; --panel:#fff; --ink:#1d2330; --muted:#667085; --line:#e3e6ec; --soft:#f8f9fb;
+  --accent:#2457c5; --accent-soft:#e8eefb; --ok:#17803d; --ok-soft:#e6f4ea;
+  --warn:#a15c00; --warn-soft:#fff4e0; --err:#c0262d; --err-soft:#fdeaea; --radius:10px;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--panel);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:18px;padding:0 20px;height:56px}
+header h1{font-size:16px;margin:0;white-space:nowrap}
+nav{display:flex;gap:2px;height:100%}
+nav button{border:0;background:none;padding:0 14px;height:100%;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;display:flex;align-items:center;gap:6px}
+nav button.on{color:var(--ink);border-bottom-color:var(--accent);font-weight:600}
+.badge{display:inline-block;min-width:20px;padding:0 6px;border-radius:10px;font-size:12px;line-height:20px;text-align:center;font-weight:600}
+.badge.err{background:var(--err);color:#fff;animation:pulse 1.6s infinite}
+.badge.warn{background:var(--warn-soft);color:var(--warn)}
+@keyframes pulse{50%{opacity:.55}}
+.hdr-right{margin-left:auto;display:flex;gap:8px;align-items:center}
+.saved{color:var(--muted);font-size:12px}
+main{padding:20px;max-width:1500px;margin:0 auto}
+.btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:8px;cursor:pointer;white-space:nowrap}
+.btn:hover{border-color:#c5cad3}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.pri:disabled{opacity:.45;cursor:not-allowed}
+.btn.danger{color:var(--err)}
+.btn.sm{padding:4px 9px;font-size:13px}
+.layout{display:grid;grid-template-columns:300px 1fr;gap:20px;align-items:start}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+.side{position:sticky;top:76px;max-height:calc(100vh - 96px);overflow:auto;padding:8px}
+.side h4{margin:12px 8px 4px;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.gitem{display:block;width:100%;text-align:left;border:0;background:none;border-radius:8px;padding:8px 10px;cursor:pointer}
+.gitem:hover{background:var(--soft)}
+.gitem.on{background:var(--accent-soft)}
+.gitem b{font-weight:600}
+.gitem small{display:block;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:middle}
+.dot.err{background:var(--err)} .dot.warn{background:#e6a23c}
+h2{margin:0 0 4px;font-size:19px}
+h3{margin:0 0 10px;font-size:15px}
+.muted{color:var(--muted)}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.chain{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}
+.chain div{background:var(--soft);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px}
+.chain div b{display:block;font-size:15px}
+.chain div.key{background:var(--accent-soft);border-color:#c6d4f3}
+.chain .arr{background:none;border:0;padding:6px 0;color:var(--muted)}
+table{border-collapse:collapse;width:100%}
+th,td{padding:7px 8px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
+th{font-size:12px;color:var(--muted);font-weight:600;background:var(--soft);position:sticky;top:56px;z-index:1}
+td.n,th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+tbody tr.click{cursor:pointer}
+tbody tr.click:hover{background:var(--soft)}
+tr.r-err td{background:var(--err-soft)}
+tr.r-warn td{background:var(--warn-soft)}
+.up{color:var(--ok)} .down{color:var(--err)}
+.pill{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;background:var(--soft);border:1px solid var(--line)}
+.msg{border-radius:8px;padding:9px 12px;margin:8px 0;font-size:13px}
+.msg.err{background:var(--err-soft);color:var(--err);border:1px solid #f2c4c6}
+.msg.warn{background:var(--warn-soft);color:var(--warn);border:1px solid #f3dcae}
+.msg.ok{background:var(--ok-soft);color:var(--ok);border:1px solid #bfe3c9}
+.msg.info{background:var(--accent-soft);color:var(--accent);border:1px solid #c6d4f3}
+label.f{display:block;margin:0 0 12px}
+label.f span{display:block;font-size:12px;color:var(--muted);margin-bottom:3px}
+input[type=text],input[type=number],input[type=date],select,textarea{width:100%;border:1px solid #cfd4dc;border-radius:7px;padding:7px 9px;background:#fff}
+input.bad{border-color:var(--err);background:var(--err-soft)}
+input.wbad{border-color:#e6a23c;background:var(--warn-soft)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 14px}
+dialog{border:0;border-radius:12px;padding:0;width:min(720px,94vw);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(20,25,35,.45)}
+.dlg-h{padding:16px 20px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.dlg-h h3{margin:0;flex:1}
+.dlg-b{padding:16px 20px;max-height:70vh;overflow:auto}
+.dlg-f{padding:12px 20px;border-top:1px solid var(--line);display:flex;gap:8px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+.hint{font-size:12px;color:var(--muted);margin-top:3px}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px;margin-bottom:16px}
+.stat b{display:block;font-size:22px}
+.stat span{color:var(--muted);font-size:12px}
+.toolbar{display:flex;gap:8px;align-items:center;margin:16px 0 10px;flex-wrap:wrap}
+.toolbar input[type=text]{max-width:320px}
+.tree label{display:flex;gap:8px;align-items:center;padding:4px 0}
+.tree .cat{font-weight:600;margin-top:8px}
+.tree .grp{padding-left:22px}
+.empty{padding:30px;text-align:center;color:var(--muted)}
+.banner{background:var(--warn-soft);color:var(--warn);border-bottom:1px solid #f3dcae;padding:8px 20px;font-size:13px;display:flex;gap:10px;align-items:center}
+.scroll-x{overflow-x:auto}
+.scroll-x th,dialog th{position:static}
+@media (min-width:901px){#tbl{overflow:visible}#tbl th{position:sticky}}
+.cc{cursor:pointer}.cc:hover{background:var(--accent-soft)}td.c-err{background:var(--err-soft)}td.c-warn{background:var(--warn-soft)}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1d2330;color:#fff;padding:10px 16px;border-radius:8px;z-index:50;font-size:13px}
+@media (max-width:900px){.layout{grid-template-columns:1fr}.side{position:static;max-height:none}header{overflow-x:auto}}
+@media print{header,.side,.toolbar,.no-print,.banner{display:none!important}.layout{display:block}main{padding:0}th{position:static}}
+</style>
+</head>
+<body>
+<header>
+  <h1>Сдельные расценки · цех 2</h1>
+  <nav id="tabs"></nav>
+  <div class="hdr-right">
+    <span class="saved" id="saved"></span>
+    <button class="btn sm" onclick="exportExcel()">Выгрузить в Excel</button>
+  </div>
+</header>
+<div id="banner"></div>
+<main id="main"></main>
+<dialog id="dlg"></dialog>
+
+<script>
+'use strict';
+/* ===================== данные ===================== */
+const SEED = /*__SEED__*/null;
+// Все файлы, открытые с диска, делят одно хранилище браузера: у цеха 2 свой ключ, иначе он перезаписал бы цех 1
+const KEY = 'sdelnye-rascenki-ceh2.v1';
+let S; // состояние
+let ui = { tab: 'rates', group: null, q: '', cmpDate: null, inc: { ids: null, mode: 'coef', value: '1.10', date: today(), note: '' } };
+
+function today(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function clone(x){ return JSON.parse(JSON.stringify(x)); }
+function load(){
+  try{ const raw=localStorage.getItem(KEY); if(raw){ S=JSON.parse(raw); migrate(); return; } }catch(e){}
+  S=clone(SEED); S.meta={created:new Date().toISOString()};
+  S.calcs=S.calcs||[];
+}
+// Новая версия программы приносит новые участки из Excel. То, что уже введено и изменено в программе, не трогаем —
+// иначе обновление файла стёрло бы повышения и правки, сделанные после 01.06.2026.
+function migrate(){
+  S.settings.calcTax1??=1.3; S.settings.calcTax2??=1.2;
+  if(!Array.isArray(S.calcs)){ S.calcs=clone(SEED.calcs||[]); S.log.unshift({ts:new Date().toISOString(),text:`Добавлены калькуляции артикулов: ${S.calcs.length}`}); try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
+  if((S.seedVersion||1)>=(SEED.seedVersion||1)) return;
+  const added=[];
+  for(const c of SEED.categories) if(!S.categories.some(x=>x.id===c.id)) S.categories.push(clone(c));
+  for(const g of SEED.groups) if(!S.groups.some(x=>x.id===g.id)){ S.groups.push(clone(g)); added.push('№'+g.no); }
+  for(const o of SEED.ops) if(!S.ops.some(x=>x.id===o.id) && SEED.groups.some(g=>g.id===o.groupId && added.includes('№'+g.no))) S.ops.push(clone(o));
+  for(const e of SEED.events) if(!S.events.some(x=>x.id===e.id)) S.events.push(clone(e));
+  S.seedVersion=SEED.seedVersion;
+  if(added.length){ S.log.unshift({ts:new Date().toISOString(),text:'Добавлены участки из Excel: '+added.join(', ')}); }
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
+}
+function save(text){
+  if(text) S.log.unshift({ts:new Date().toISOString(), text}); S.log=S.log.slice(0,500);
+  S.meta=S.meta||{}; S.meta.changed=new Date().toISOString();
+  try{ localStorage.setItem(KEY, JSON.stringify(S)); document.getElementById('saved').textContent='Сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
+  catch(e){ alert('Не удалось сохранить данные в браузере: '+e.message+'\nСохраните резервную копию в Настройках.'); }
+  if(SH1) publishZpt();
+}
+
+/* ===================== расчёт ===================== */
+// Округление «как в Excel» без хвостов двоичной арифметики (0.12391*7.33 = 0.9082603 → 0.908)
+function R(x,d){ const k=10**d; return Math.round(Number((x*k).toPrecision(12)))/k; }
+// Сколько знаков у цены секунды и у расценки — как в Excel этого участка (обычно 5 и 3)
+const SD=g=>(g&&g.secDigits)||5, RD=g=>(g&&g.rateDigits)||3;
+function calcGroup(g, s=S.settings){
+  const base=g.monthly/(1+s.bonusPct/100), day=base/s.workDays, hour=day/s.shiftHours;
+  const net=g.monthly*(1-s.ndflPct/100);
+  if(g.kind==='piece'){ const min=day/(g.netHours*60); return {base,day,hour,net,min,sec:R(min/60,SD(g))}; }
+  return {base,day,hour,net,hourCost:Math.round(hour)};
+}
+function costOf(g){ if(g.kind==='tariff') return g.index; const c=calcGroup(g); return g.kind==='piece'?c.sec:c.hourCost; }
+function rateOf(op, g){ g=g||G(op.groupId); if(g.kind==='tariff') return op.price; return R(calcGroup(g).sec*op.time/op.pcs,RD(g)); }
+function G(id){ return S.groups.find(g=>g.id===id); }
+function opsOf(gid){ return S.ops.filter(o=>o.groupId===gid); }
+function metric(e,g){ return g.kind==='piece'? e.secCost : g.kind==='tariff'? e.index : e.hourCost; }
+const KIND={piece:'Сдельная оплата',hourly:'Повремённая оплата',tariff:'Прейскурант: готовые расценки'};
+// прошлое значение участка (до последнего изменения оклада)
+function groupPrev(g){ const h=g.history; return h.length>1? h[h.length-2] : null; }
+function groupLast(g){ return g.history[g.history.length-1]; }
+function groupChange(g){
+  const p=groupPrev(g); if(!p) return null; const a=metric(p,g), b=costOf(g);
+  if(!a||!b) return null; return {from:p.date,to:groupLast(g).date,a,b,pct:(b/a-1)*100};
+}
+// базовая расценка операции — последняя запись до последнего повышения участка
+function opBase(op){
+  const g=G(op.groupId), d=groupLast(g).date;
+  for(let i=op.history.length-1;i>=0;i--){ if(op.history[i].date<d) return op.history[i]; }
+  return null;
+}
+function valueAt(g, date){ let v=null; for(const e of g.history){ if(e.date<=date && metric(e,g)) v=e; } return v; }
+
+/* ===================== формат ===================== */
+const nf=(x,d=2)=> x==null||!isFinite(x)? '—' : x.toLocaleString('ru-RU',{minimumFractionDigits:d,maximumFractionDigits:d});
+const nfa=(x,max=4)=> x==null||!isFinite(x)? '—' : x.toLocaleString('ru-RU',{maximumFractionDigits:max});
+const pct=(x,d=1)=> x==null||!isFinite(x)? '—' : (x>0?'+':'')+nf(x,d)+'%';
+const pcls=x=> x>0.05?'up':x<-0.05?'down':'';
+const fd=s=> s? s.split('-').reverse().join('.') : '—';
+const esc=s=> String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function money(x){ return nf(x,0)+' ₽'; }
+// Число из поля: «7,33», «7.33», «1:30» (мин:сек), пробелы-разделители тысяч
+function num(v){
+  if(typeof v==='number') return v;
+  v=String(v??'').trim().replace(/\s| /g,'');
+  if(!v) return NaN;
+  const m=v.match(/^(\d+):(\d{1,2}(?:[.,]\d+)?)$/); if(m) return +m[1]*60 + +m[2].replace(',','.');
+  if(!/^-?\d*[.,]?\d+$/.test(v)) return NaN;
+  return +v.replace(',','.');
+}
+function toast(t){ const d=document.createElement('div'); d.className='toast'; d.textContent=t; document.body.appendChild(d); setTimeout(()=>d.remove(),2600); }
+
+/* ===================== контроль данных ===================== */
+// Возвращает список замечаний: error — данные нельзя использовать, warn — подозрительно, проверьте
+function checkOp(op, g, all){
+  if(g.kind==='tariff') return checkPrice(op,g,all);
+  const out=[], E=t=>out.push({level:'error',text:t}), W=t=>out.push({level:'warn',text:t});
+  if(!op.name || !String(op.name).trim()) E('Нет наименования изделия.');
+  if(!(Number.isInteger(op.pcs) && op.pcs>=1)) E('«Штук за операцию» должно быть целым числом от 1.');
+  if(!(isFinite(op.time) && op.time>0)) E('Контрольное время должно быть положительным числом секунд.');
+  if(out.length) return out;
+  const rate=rateOf(op,g);
+  if(rate<10**-RD(g)) E('Расценка округляется до нуля: проверьте время и штуки.');
+  const per=op.time/op.pcs;
+  if(per<(g.minPer||0.3)) W(`На одну штуку получается ${nfa(per,3)} с — очень мало. Не перепутаны ли штуки и секунды?`);
+  if(op.time>(g.maxTime||1800)) W(`Время ${nfa(op.time)} с — это больше ${nfa((g.maxTime||1800)/60,1)} мин. Не перепутаны ли единицы (минуты, часы вместо секунд)?`);
+  if(all){
+    const dup=all.filter(o=>o!==op && o.id!==op.id && o.groupId===op.groupId && norm(o.art)===norm(op.art) && norm(o.name)===norm(op.name) && norm(o.oper)===norm(op.oper) && o.pcs===op.pcs);
+    if(dup.length) W('Такая же операция (артикул, название, операция, штуки) уже есть на участке.');
+  }
+  const b=op.history? opBase(op):null, gc=groupChange(g);
+  if(b && b.rate && gc){
+    const ch=(rate/b.rate-1)*100;
+    if(Math.abs(ch-gc.pct)>S.settings.warnRateDeviation)
+      W(`Расценка изменилась на ${pct(ch)} (было ${nf(b.rate,RD(g))} с ${fd(b.date)}), а участок повышен на ${pct(gc.pct)}. Менялось время или штуки — проверьте.`);
+  }
+  return out;
+}
+// Позиция прейскуранта: цена задана готовой, а не считается от времени
+function checkPrice(op, g, all){
+  const out=[], E=t=>out.push({level:'error',text:t}), W=t=>out.push({level:'warn',text:t});
+  if(!op.name || !String(op.name).trim()) E('Нет наименования.');
+  if(!(g.variants||[]).includes(op.variant)) E('Не выбран столбец прейскуранта.');
+  if(!(isFinite(op.price) && op.price>0)) E('Расценка должна быть положительным числом рублей.');
+  else if(op.price<0.01) E('Расценка меньше копейки.');
+  if(out.length) return out;
+  if(g.cycle){
+    if(!(Number.isInteger(op.places)&&op.places>=1&&op.places<=50)) E('«Мест в электроде» — целое число от 1.');
+    if(!(isFinite(op.cycle)&&op.cycle>0&&op.cycle<5)) E('Цена цикла — положительное число рублей (например 0,13).');
+  }
+  if(out.length) return out;
+  if(all){
+    const same=all.filter(o=>o.groupId===op.groupId && o!==op && o.id!==op.id && norm(o.art)===norm(op.art) && norm(o.name)===norm(op.name));
+    if(same.some(o=>o.variant===op.variant)) W('Такая позиция в этом столбце уже есть.');
+    if(g.cycle){
+      // В Excel цена за штуку целиком определяется местами и ценой цикла: у одинаковой пары — одинаковая расценка
+      const an=analogs(op,g,all);
+      if(an.length && !an.some(o=>o.price===op.price)) W(`У других позиций с ${op.places} ${plural(op.places,'местом','местами','местами')} и ценой цикла ${nfa(op.cycle,4)} расценка ${nf(an[0].price,RD(g))} (например, ${an[0].art||an[0].name}). Здесь ${nf(op.price,RD(g))}.`);
+      if(!an.length && !(g.cycleRef||[]).includes(op.cycle) && !all.some(o=>o.groupId===g.id && o!==op && o.id!==op.id && o.cycle===op.cycle)) W(`Цены цикла ${nfa(op.cycle,4)} нет в справочнике и ни у одной другой позиции. Не опечатка?`);
+    }
+    // Столбцы идут от меньшего к большему (А7 → А2, одна сторона → две), поэтому цена слева направо не должна падать
+    const vi=g.noOrder?-1:g.variants.indexOf(op.variant);
+    const left=same.filter(o=>g.variants.indexOf(o.variant)<vi && o.price>op.price).sort((x,y)=>y.price-x.price)[0];
+    if(left) W(`Цена за «${op.variant}» (${nf(op.price,3)}) меньше, чем за меньший формат «${left.variant}» (${nf(left.price,3)}).`);
+  }
+  const b=op.history? opBase(op):null, gc=groupChange(g);
+  if(b && b.rate && gc){
+    const ch=(op.price/b.rate-1)*100;
+    if(Math.abs(ch-gc.pct)>S.settings.warnRateDeviation)
+      W(`Цена изменилась на ${pct(ch)} (было ${nf(b.rate,3)} с ${fd(b.date)}), а раздел повышен на ${pct(gc.pct)}. Цену правили вручную — проверьте.`);
+  }
+  return out;
+}
+function norm(s){ return String(s??'').toLowerCase().replace(/\s+/g,' ').trim(); }
+function analogs(op,g,all){ return all.filter(o=>o.groupId===g.id && o!==op && o.id!==op.id && o.places===op.places && o.cycle===op.cycle && o.price); }
+function checkGroup(g){
+  const out=[], E=t=>out.push({level:'error',text:t}), W=t=>out.push({level:'warn',text:t}), s=S.settings;
+  if(!g.name||!g.name.trim()) E('Нет названия участка.');
+  if(g.kind==='tariff'){ if(!(g.variants||[]).length) E('У прейскуранта нет ни одного столбца.'); }
+  else if(!(isFinite(g.monthly)&&g.monthly>0)) E('Не указан оклад (зарплата в месяц с премией).');
+  else if(g.monthly<10000||g.monthly>1000000) W(`Оклад ${money(g.monthly)} вне обычного диапазона — нет ли лишнего или пропущенного нуля?`);
+  if(g.kind==='piece' && !(isFinite(g.netHours)&&g.netHours>0&&g.netHours<=s.shiftHours)) E(`Чистое время должно быть больше 0 и не больше смены (${s.shiftHours} ч).`);
+  const c=groupChange(g);
+  if(c){
+    if(c.pct<0) W(`${g.kind==='piece'?'Цена секунды':g.kind==='tariff'?'Прейскурант':'Цена часа'} снизилась на ${pct(c.pct)} к ${fd(c.from)}.`);
+    else if(c.pct>s.warnSalaryJump) W(`Рост ${pct(c.pct)} к ${fd(c.from)} — больше порога ${s.warnSalaryJump}%.`);
+  }
+  return out;
+}
+function checkSettings(s){
+  const out=[], E=t=>out.push({level:'error',text:t});
+  if(!(s.bonusPct>=0&&s.bonusPct<=200)) E('Премия должна быть от 0 до 200%.');
+  if(!(s.workDays>=15&&s.workDays<=26)) E('Среднее число рабочих дней в месяце — от 15 до 26.');
+  if(!(s.shiftHours>=1&&s.shiftHours<=24)) E('Длительность смены — от 1 до 24 часов.');
+  if(!(s.ndflPct>=0&&s.ndflPct<=50)) E('НДФЛ — от 0 до 50%.');
+  if(!((s.calcTax1??1.3)>=1&&(s.calcTax1??1.3)<=3&&(s.calcTax2??1.2)>=1&&(s.calcTax2??1.2)<=3)) E('Множители калькуляции — от 1 до 3.');
+  return out;
+}
+function allIssues(){
+  const res=[];
+  for(const i of checkSettings(S.settings)) res.push({...i,where:'Настройки расчёта'});
+  for(const g of S.groups){
+    for(const i of checkGroup(g)) res.push({...i,where:`№${g.no} ${g.name}`,gid:g.id});
+    if(g.kind==='hourly'||checkGroup(g).some(i=>i.level==='error')) continue;
+    for(const o of opsOf(g.id)) for(const i of checkOp(o,g,S.ops)) res.push({...i,where:`№${g.no} · ${o.art?o.art+' · ':''}${o.name}`,gid:g.id,oid:o.id});
+  }
+  if(S.calcs) res.push(...calcIssues());
+  return res;
+}
+let ISS=[];
+function issuesFor(gid,oid){ return ISS.filter(i=>i.gid===gid && (oid===undefined || i.oid===oid)); }
+function lvl(list){ return list.some(i=>i.level==='error')?'err':list.length?'warn':''; }
+
+/* ===================== каркас ===================== */
+const TABS=[['rates','Расценки'],['calc','Калькуляции'],['inc','Повышение'],['an','Аналитика'],['chk','Проверка'],['set','Настройки']];
+function render(){
+  OPIDX=null; ISS=allIssues();
+  const ne=ISS.filter(i=>i.level==='error').length, nw=ISS.length-ne;
+  document.getElementById('tabs').innerHTML=TABS.map(([k,t])=>`<button class="${ui.tab===k?'on':''}" onclick="go('${k}')">${t}${k==='chk'?(ne?` <span class="badge err">${ne}</span>`:'')+(nw?` <span class="badge warn">${nw}</span>`:''):''}</button>`).join('');
+  renderBanner(ne);
+  const m=document.getElementById('main');
+  ({rates:renderRates,calc:renderCalc,inc:renderInc,an:renderAn,chk:renderChk,set:renderSet})[ui.tab](m);
+}
+function go(t){ ui.tab=t; render(); scrollTo(0,0); }
+function renderBanner(ne){
+  const b=document.getElementById('banner'); const lb=S.meta&&S.meta.backup, ch=S.meta&&S.meta.changed;
+  let h='';
+  if(ne) h+=`<div class="banner" style="background:var(--err-soft);color:var(--err);border-color:#f2c4c6"><b>В данных ${ne} ${plural(ne,'ошибка','ошибки','ошибок')}.</b> Расценки с ошибками считать нельзя. <button class="btn sm" onclick="go('chk')">Показать</button></div>`;
+  if(ch && (!lb || (new Date(ch)-new Date(lb))>0 && (Date.now()-new Date(lb||S.meta.created||0))>7*864e5))
+    h+=`<div class="banner">Данные хранятся только в этом браузере. Резервной копии не было ${lb?'с '+new Date(lb).toLocaleDateString('ru-RU'):'ни разу'}. <button class="btn sm" onclick="backup()">Сохранить копию</button></div>`;
+  b.innerHTML=h;
+}
+function plural(n,a,b,c){ n=Math.abs(n)%100; const m=n%10; return n>10&&n<20?c:m>1&&m<5?b:m===1?a:c; }
+
+/* ===================== вкладка «Расценки» ===================== */
+function sideList(){
+  return `<div class="card side">`+S.categories.map(c=>{
+    const gs=S.groups.filter(g=>g.categoryId===c.id).sort((a,b)=>a.no-b.no);
+    return `<h4>${esc(c.name)}</h4>`+gs.map(g=>{
+      const l=lvl(issuesFor(g.id)), n=opsOf(g.id).length;
+      return `<button class="gitem ${ui.group===g.id?'on':''}" onclick="ui.group='${g.id}';ui.q='';render()"><b>№${g.no}</b> ${esc(g.name)}${l?`<span class="dot ${l}"></span>`:''}
+      <small>${g.kind==='piece'?`${nf(costOf(g),SD(g))} ₽/с · ${n} ${plural(n,'операция','операции','операций')}`:g.kind==='tariff'?`прейскурант · ${n} ${plural(n,'цена','цены','цен')}`:`${nf(costOf(g),0)} ₽/час · повремённая`}</small></button>`;
+    }).join('')||'<div class="muted" style="padding:4px 10px">нет участков</div>';
+  }).join('')+`<div style="padding:10px"><button class="btn sm" onclick="dlgGroup()">+ Участок</button></div></div>`;
+}
+function renderRates(m){
+  if(!ui.group||!G(ui.group)){ const c0=S.categories.find(c=>S.groups.some(g=>g.categoryId===c.id)); ui.group=(S.groups.filter(g=>!c0||g.categoryId===c0.id).sort((a,b)=>a.no-b.no)[0]||{}).id; }
+  const g=G(ui.group);
+  if(!g){ m.innerHTML=`<div class="layout">${sideList()}<div class="card empty">Участков пока нет.</div></div>`; return; }
+  if(g.kind==='tariff') return renderTariff(m,g);
+  const c=calcGroup(g), gc=groupChange(g), gi=issuesFor(g.id).filter(i=>!i.oid);
+  let h=`<div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1;min-width:260px">
+    <h2>№${g.no}. ${esc(g.name)}</h2>
+    <div class="muted">${g.kind==='piece'?'Сдельная оплата':'Повремённая оплата'} · ${esc((S.categories.find(x=>x.id===g.categoryId)||{}).name||'без группы')} · действует с ${fd(groupLast(g).date)}
+    ${gc?` · <span class="${pcls(gc.pct)}">${pct(gc.pct)}</span> к ${fd(gc.from)}`:''}</div></div>
+    <div class="row no-print"><button class="btn" onclick="dlgSalary('${g.id}')">Изменить оклад</button><button class="btn" onclick="dlgGroup('${g.id}')">Участок…</button></div></div>
+    ${gi.map(i=>`<div class="msg ${i.level==='error'?'err':'warn'}">${esc(i.text)}</div>`).join('')}
+    <div class="chain">
+      <div>Зарплата в месяц с премией<b>${money(g.monthly)}</b></div><div class="arr">→</div>
+      <div>без премии ${S.settings.bonusPct}%<b>${nf(c.base,2)}</b></div><div class="arr">→</div>
+      <div>за день (÷${nfa(S.settings.workDays)})<b>${nf(c.day,4)}</b></div><div class="arr">→</div>
+      <div>за час (÷${S.settings.shiftHours})<b>${nf(c.hour,4)}</b></div>
+      ${g.kind==='piece'?`<div class="arr">→</div><div>минута чистого времени (${nfa(g.netHours)} ч)<b>${nf(c.min,4)}</b></div><div class="arr">→</div><div class="key">секунда<b>${nf(c.sec,SD(g))} ₽</b></div>`
+        :`<div class="arr">→</div><div class="key">стоимость часа<b>${nf(c.hourCost,0)} ₽</b></div>`}
+    </div>
+    <div class="hint">На руки в среднем (минус НДФЛ ${S.settings.ndflPct}%): ${money(c.net)}.${g.kind==='piece'?` Время на организацию рабочего места: ${nfa(S.settings.shiftHours-g.netHours,3)} ч из смены.`:''}</div>
+  </div>`;
+  if(g.kind==='piece'){
+    h+=`<div class="toolbar no-print"><input type="text" placeholder="Поиск по артикулу, названию или операции" value="${esc(ui.q)}" oninput="ui.q=this.value;renderTable()" id="q">
+      <button class="btn pri" onclick="dlgOp(null,'${g.id}')">+ Операция</button>
+      <button class="btn" onclick="dlgPaste('${g.id}')">Вставить из Excel</button>
+      <span class="muted" id="cnt"></span></div>
+      <div class="card" style="padding:0"><div class="scroll-x" id="tbl"></div></div>`;
+  } else {
+    h+=`<div class="card" style="margin-top:16px"><h3>История стоимости часа</h3>${histTable(g)}</div>`;
+  }
+  m.innerHTML=`<div class="layout">${sideList()}<div>${h}</div></div>`;
+  if(g.kind==='piece') renderTable();
+}
+function renderTariff(m,g){
+  const gc=groupChange(g), gi=issuesFor(g.id).filter(i=>!i.oid);
+  const h=`<div class="card"><div class="row" style="align-items:flex-start"><div style="flex:1;min-width:260px">
+    <h2>№${g.no}. ${esc(g.name)}</h2>
+    <div class="muted">${KIND.tariff} · ${esc((S.categories.find(x=>x.id===g.categoryId)||{}).name||'без группы')} · действует с ${fd(groupLast(g).date)}
+    ${gc?` · <span class="${pcls(gc.pct)}">${pct(gc.pct)}</span> к ${fd(gc.from)}`:''}</div></div>
+    <div class="row no-print"><button class="btn" onclick="incOnly('${g.id}')">Повысить на коэффициент</button><button class="btn" onclick="dlgGroup('${g.id}')">Участок…</button></div></div>
+    ${gi.map(i=>`<div class="msg ${i.level==='error'?'err':'warn'}">${esc(i.text)}</div>`).join('')}
+    <div class="hint" style="margin-top:10px">Цены не считаются от оклада: они заданы готовыми и при повышении умножаются на коэффициент (с округлением до 3 знаков).</div>
+    ${g.cycle?`<div class="hint">Накопленный рост с базы: ×${nfa(g.index,4)}. У новой позиции укажите места на электроде и цену цикла — программа подставит расценку аналога.</div>`:''}
+    ${g.notes?`<div class="msg info" style="margin-top:10px;white-space:pre-line">${esc(g.notes)}</div>`:''}</div>
+    <div class="toolbar no-print"><input type="text" placeholder="Поиск по артикулу или названию" value="${esc(ui.q)}" oninput="ui.q=this.value;renderTable()" id="q">
+      <button class="btn pri" onclick="dlgOp(null,'${g.id}')">+ Позиция</button><span class="muted" id="cnt"></span></div>
+    <div class="card" style="padding:0"><div class="scroll-x" id="tbl"></div></div>
+    <div class="card" style="margin-top:16px"><h3>История повышений</h3>${histTable(g)}</div>`;
+  m.innerHTML=`<div class="layout">${sideList()}<div>${h}</div></div>`;
+  renderTable();
+}
+function incOnly(gid){ ui.inc.ids=new Set([gid]); go('inc'); }
+function renderTariffTable(g){
+  // строка таблицы — артикул + наименование: у школьных обложек одно название на много артикулов
+  const q=norm(ui.q), all=opsOf(g.id), K=o=>o.art+'\u0001'+o.name, hasArt=all.some(o=>o.art), d=RD(g);
+  const names=[...new Set(all.map(K))].filter(n=>!q||norm(n.replace('\u0001',' ')).includes(q)), gc=groupChange(g);
+  document.getElementById('cnt').textContent=`${names.length} ${plural(names.length,'строка','строки','строк')} · ${all.length} ${plural(all.length,'цена','цены','цен')} · под ценой — рост${gc?' к '+fd(gc.from):''}`;
+  document.getElementById('tbl').innerHTML= names.length? `<table><thead><tr>${hasArt?'<th>Артикул</th>':''}<th>Наименование</th>${g.cycle?'<th class="n">Мест в электроде</th><th class="n">Цена цикла (база)</th>':''}${g.variants.map(v=>`<th class="n">${esc(v)}</th>`).join('')}</tr></thead><tbody>`+
+    names.map(n=>{ const row=all.filter(o=>K(o)===n), o0=row[0];
+      return `<tr>${hasArt?`<td style="white-space:nowrap">${esc(o0.art)}</td>`:''}<td>${esc(o0.name)}</td>${g.cycle?`<td class="n">${o0.places??'—'}</td><td class="n">${o0.cycle!=null?nfa(o0.cycle,4):'—'}</td>`:''}${g.variants.map(v=>{ const o=row.find(x=>x.variant===v); if(!o) return '<td class="n muted">—</td>';
+        const b=opBase(o), ch=b&&b.rate?(o.price/b.rate-1)*100:null, is=issuesFor(g.id,o.id), l=lvl(is);
+        return `<td class="n cc ${l?'c-'+l:''}" onclick="dlgOp('${o.id}')" title="${esc(is.map(x=>x.text).join('\n'))}"><b>${nf(o.price,d)}</b><br><small class="${pcls(ch)}">${b?pct(ch):'новая'}</small></td>`; }).join('')}</tr>`; }).join('')+`</tbody></table>`
+    : `<div class="empty">${q?'Ничего не найдено.':'Позиций пока нет.'}</div>`;
+}
+function renderTable(){
+  const g=G(ui.group), q=norm(ui.q);
+  if(g.kind==='tariff') return renderTariffTable(g);
+  const list=opsOf(g.id).filter(o=>!q||norm(o.art+' '+o.name+' '+(o.oper||'')).includes(q));
+  const gc=groupChange(g), hasOp=opsOf(g.id).some(o=>o.oper), d=RD(g);
+  document.getElementById('cnt').textContent=`${list.length} из ${opsOf(g.id).length}`;
+  document.getElementById('tbl').innerHTML= list.length? `<table><thead><tr><th class="n">№</th><th>Артикул</th><th>Наименование изделия</th>${hasOp?'<th>Операция</th>':''}<th class="n">${esc(g.pcsLabel||'Штук за операцию')}</th><th class="n">${esc(g.timeLabel||'Контр. время, с')}</th><th class="n">Время на 1 шт, с</th><th class="n">Расценка, ₽/шт</th><th class="n">Было${gc?' ('+fd(gc.from)+')':''}</th><th class="n">Рост</th><th class="n">Изменено</th></tr></thead><tbody>`+
+    list.map((o,i)=>{
+      const r=rateOf(o,g), b=opBase(o), l=lvl(issuesFor(g.id,o.id)), last=o.history[o.history.length-1];
+      const ch=b&&b.rate? (r/b.rate-1)*100 : null;
+      return `<tr class="click ${l?'r-'+l:''}" onclick="dlgOp('${o.id}')" title="${esc(issuesFor(g.id,o.id).map(x=>x.text).join('\n'))}"><td class="n">${i+1}</td><td>${esc(o.art)}</td><td>${esc(o.name)}</td>${hasOp?`<td class="muted" style="max-width:340px">${esc(o.oper||'')}</td>`:''}<td class="n">${o.pcs}</td><td class="n">${nfa(o.time)}</td><td class="n">${nfa(o.time/o.pcs,3)}</td><td class="n"><b>${nf(r,d)}</b></td><td class="n">${b?nf(b.rate,d):'—'}</td><td class="n ${pcls(ch)}">${pct(ch)}</td><td class="n">${fd(last&&last.date)}</td></tr>`;
+    }).join('')+`</tbody></table>` : `<div class="empty">${q?'Ничего не найдено.':'Операций пока нет. Добавьте первую или вставьте список из Excel.'}</div>`;
+}
+function histTable(g){
+  const h=g.history;
+  if(g.kind==='tariff') return `<table><thead><tr><th>С даты</th><th class="n">Коэффициент к прошлому</th><th class="n">Рост</th><th class="n">Накопленный индекс (от ${fd(h[0].date)})</th><th>Основание</th></tr></thead><tbody>`+
+    h.map((e,i)=>{ const k=i?e.index/h[i-1].index:null; return `<tr><td>${fd(e.date)}</td><td class="n">${k?'×'+nfa(k,4):'—'}</td><td class="n ${k?pcls(k-1):''}">${k?pct((k-1)*100):'—'}</td><td class="n">${nfa(e.index,4)}</td><td>${esc(e.reason||'')}</td></tr>`; }).reverse().join('')+`</tbody></table>`;
+  return `<table><thead><tr><th>С даты</th><th class="n">Оклад с премией</th>${g.kind==='piece'?'<th class="n">Чистое время, ч</th><th class="n">Секунда, ₽</th>':'<th class="n">Час, ₽</th>'}<th class="n">Рост к прошлому</th><th>Основание</th></tr></thead><tbody>`+
+    h.map((e,i)=>{ const p=i?metric(h[i-1],g):null, v=metric(e,g); return `<tr><td>${fd(e.date)}</td><td class="n">${e.monthly?money(e.monthly):'—'}</td>${g.kind==='piece'?`<td class="n">${e.netHours?nfa(e.netHours):'—'}</td><td class="n">${nf(v,SD(g))}</td>`:`<td class="n">${nf(v,0)}</td>`}<td class="n ${p?pcls(v/p-1):''}">${p?pct((v/p-1)*100):'—'}</td><td>${esc(e.reason||'')}</td></tr>`; }).reverse().join('')+`</tbody></table>`;
+}
+
+/* ===================== диалоги ===================== */
+const dlg=document.getElementById('dlg');
+function openDlg(html){ dlg.innerHTML=html; if(!dlg.open) dlg.showModal(); }
+function closeDlg(){ dlg.close(); }
+function issuesHtml(list){ return list.map(i=>`<div class="msg ${i.level==='error'?'err':'warn'}">${i.level==='error'?'Ошибка: ':'Проверьте: '}${esc(i.text)}</div>`).join(''); }
+function confirmBox(id){ return `<label class="row" style="margin-top:6px"><input type="checkbox" id="${id}" onchange="this.dispatchEvent(new Event('recheck',{bubbles:true}))"> Я проверил(а), данные верны</label>`; }
+
+// --- операция
+function dlgOp(oid, gid){
+  if(G(oid? S.ops.find(o=>o.id===oid).groupId : gid).kind==='tariff') return dlgPrice(oid,gid);
+  const op=oid? S.ops.find(o=>o.id===oid) : {id:null,groupId:gid,art:'',name:'',oper:'',pcs:1,time:'',history:[]};
+  const g=G(op.groupId);
+  const hist=op.history.slice().reverse().map(e=>`<tr><td>${fd(e.date)}</td><td class="n">${e.pcs}</td><td class="n">${nfa(e.time)}</td><td class="n">${nf(e.rate,RD(g))}</td><td>${esc(e.reason||'')}</td></tr>`).join('');
+  openDlg(`<div class="dlg-h"><h3>${oid?'Операция':'Новая операция'} · №${g.no}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+  <div class="dlg-b" id="opf">
+    <div class="grid2"><label class="f"><span>Артикул</span><input type="text" id="o_art" value="${esc(op.art)}"></label>
+    <label class="f"><span>Дата изменения</span><input type="date" id="o_date" value="${today()}"></label></div>
+    <label class="f"><span>Наименование изделия</span><input type="text" id="o_name" value="${esc(op.name)}"></label>
+    <label class="f"><span>Операция ${g.pcsLabel?'(вид упаковки)':'(сварка, снятие облоя…)'} — можно не заполнять</span><input type="text" id="o_oper" value="${esc(op.oper||'')}"></label>
+    <div class="grid3"><label class="f"><span>${esc(g.pcsLabel||'Штук за одну операцию')}</span><input type="text" id="o_pcs" value="${esc(op.pcs)}" inputmode="numeric"></label>
+    <label class="f"><span>${esc(g.timeLabel||'Контрольное время на операцию, с')}</span><input type="text" id="o_time" value="${esc(op.time===''?'':String(op.time).replace('.',','))}" inputmode="decimal"><div class="hint">Можно «1:30» — это 90 с</div></label>
+    <label class="f"><span>Расценка без премии, ₽/шт</span><input type="text" id="o_rate" disabled></label></div>
+    <div id="o_msgs"></div>
+    ${oid?`<h3 style="margin-top:14px">История</h3><table><thead><tr><th>С даты</th><th class="n">Штук</th><th class="n">Время, с</th><th class="n">Расценка</th><th>Основание</th></tr></thead><tbody>${hist}</tbody></table>`:''}
+  </div>
+  <div class="dlg-f">${oid?`<button class="btn danger" style="margin-right:auto" onclick="delOp('${oid}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="o_save">Сохранить</button></div>`);
+  const f=()=>({id:op.id,groupId:op.groupId,art:o_art.value.trim(),name:o_name.value.trim().replace(/\s+/g,' '),oper:o_oper.value.trim().replace(/\s+/g,' '),pcs:num(o_pcs.value),time:num(o_time.value),history:op.history});
+  const recheck=()=>{
+    const c=f(); let list=checkOp(c,g,S.ops);
+    if(!(/^\d{4}-\d\d-\d\d$/.test(o_date.value))) list.unshift({level:'error',text:'Укажите дату изменения.'});
+    if(oid && isFinite(c.time) && op.time && Math.abs(c.time/op.time-1)*100>S.settings.warnTimeJump) list.push({level:'warn',text:`Время меняется с ${nfa(op.time)} до ${nfa(c.time)} с (${pct((c.time/op.time-1)*100)}). Так и задумано?`});
+    if(oid && isFinite(c.pcs) && c.pcs!==op.pcs) list.push({level:'warn',text:`Меняется число штук за операцию: ${op.pcs} → ${c.pcs}. Расценка за штуку изменится в ${nfa(c.pcs/op.pcs,2)} раза.`});
+    let errs=list.filter(i=>i.level==='error'), warns=list.filter(i=>i.level==='warn');
+    if(errs.length){ warns=[]; list=errs; } // пока есть ошибка, предупреждения только отвлекают
+    o_pcs.className=list.some(i=>/Штук|штук/.test(i.text)&&i.level==='error')?'bad':'';
+    o_time.className=errs.some(i=>/время/.test(i.text))?'bad':warns.some(i=>/[Вв]рем|секунд|минут/.test(i.text))?'wbad':'';
+    o_rate.value=errs.length?'—':nf(rateOf(c,g),RD(g));
+    const prevConf=document.getElementById('o_ok'); const wasOk=prevConf&&prevConf.checked;
+    o_msgs.innerHTML=issuesHtml(list)+(warns.length&&!errs.length?confirmBox('o_ok'):'');
+    if(wasOk&&document.getElementById('o_ok')) o_ok.checked=true;
+    o_save.disabled= errs.length>0 || (warns.length>0 && !(document.getElementById('o_ok')||{}).checked);
+    return {c,errs,warns};
+  };
+  opf.addEventListener('input',recheck); opf.addEventListener('recheck',recheck); recheck();
+  o_save.onclick=()=>{
+    const {c,errs}=recheck(); if(errs.length) return;
+    const date=o_date.value, rate=rateOf(c,g);
+    if(oid){
+      const ch=[]; if(c.art!==op.art) ch.push('артикул'); if(c.name!==op.name) ch.push('название'); if(c.oper!==(op.oper||'')) ch.push('операция');
+      if(c.pcs!==op.pcs) ch.push(`штук ${op.pcs}→${c.pcs}`); if(c.time!==op.time) ch.push(`время ${nfa(op.time)}→${nfa(c.time)} с`);
+      if(!ch.length){ closeDlg(); return; }
+      Object.assign(op,{art:c.art,name:c.name,oper:c.oper,pcs:c.pcs,time:c.time});
+      if(c.pcs!==op.history.at(-1)?.pcs || c.time!==op.history.at(-1)?.time || true) op.history.push({date,pcs:c.pcs,time:c.time,rate,reason:'Правка: '+ch.join(', ')});
+      save(`№${g.no} «${c.name}»: ${ch.join(', ')}`);
+    } else {
+      const n={id:'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),groupId:g.id,art:c.art,name:c.name,oper:c.oper,pcs:c.pcs,time:c.time,history:[{date,pcs:c.pcs,time:c.time,rate,reason:'Новая операция'}]};
+      S.ops.push(n); save(`№${g.no}: добавлена операция «${c.name}», ${nf(rate,RD(g))} ₽`);
+    }
+    closeDlg(); render();
+  };
+}
+function dlgPrice(oid, gid){
+  const op=oid? S.ops.find(o=>o.id===oid) : {id:null,groupId:gid,art:'',name:'',variant:G(gid).variants[0],price:'',places:'',cycle:'',history:[]};
+  const g=G(op.groupId), names=[...new Set(opsOf(g.id).map(o=>o.name))], d=RD(g);
+  const hist=op.history.slice().reverse().map(e=>`<tr><td>${fd(e.date)}</td><td class="n">${nf(e.rate,d)}</td><td>${esc(e.reason||'')}</td></tr>`).join('');
+  openDlg(`<div class="dlg-h"><h3>${oid?'Позиция прейскуранта':'Новая позиция'} · №${g.no}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+  <div class="dlg-b" id="opf">
+    <label class="f" style="max-width:260px"><span>Артикул</span><input type="text" id="o_art" value="${esc(op.art||'')}"></label>
+    <label class="f"><span>Наименование</span><input type="text" id="o_name" value="${esc(op.name)}" list="o_names"><datalist id="o_names">${names.map(n=>`<option value="${esc(n)}">`).join('')}</datalist></label>
+    <div class="grid3"><label class="f"><span>Столбец</span><select id="o_var">${g.variants.map(v=>`<option ${v===op.variant?'selected':''}>${esc(v)}</option>`).join('')}</select></label>
+    <label class="f"><span>Расценка, ₽</span><input type="text" id="o_price" value="${esc(op.price===''?'':String(op.price).replace('.',','))}" inputmode="decimal"></label>
+    <label class="f"><span>Дата изменения</span><input type="date" id="o_date" value="${today()}"></label></div>
+    ${g.cycle?`<div class="grid3"><label class="f"><span>Мест в электроде</span><input type="text" id="o_pl" value="${esc(op.places??'')}" inputmode="numeric"></label>
+    <label class="f"><span>Цена цикла (база), ₽</span><input type="text" id="o_cy" value="${esc(op.cycle===''||op.cycle==null?'':String(op.cycle).replace('.',','))}" inputmode="decimal"></label><div id="o_an" class="hint" style="align-self:end"></div></div>`:''}
+    <div id="o_msgs"></div>
+    ${oid?`<h3 style="margin-top:14px">История</h3><table><thead><tr><th>С даты</th><th class="n">Расценка</th><th>Основание</th></tr></thead><tbody>${hist}</tbody></table>`:''}
+  </div>
+  <div class="dlg-f">${oid?`<button class="btn danger" style="margin-right:auto" onclick="delOp('${oid}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="o_save">Сохранить</button></div>`);
+  const f=()=>{ const c={id:op.id,groupId:g.id,art:o_art.value.trim(),name:o_name.value.trim().replace(/\s+/g,' '),variant:o_var.value,price:num(o_price.value),history:op.history};
+    if(g.cycle){ c.places=num(o_pl.value); c.cycle=num(o_cy.value); } return c; };
+  const recheck=e=>{
+    if(g.cycle){ const c0=f(), an=Number.isInteger(c0.places)&&isFinite(c0.cycle)?analogs(c0,g,S.ops):[];
+      o_an.innerHTML=an.length?`Аналог: ${esc(an[0].art||an[0].name)} — <b>${nf(an[0].price,d)} ₽</b> (таких позиций ${an.length})`:(isFinite(c0.cycle)&&Number.isInteger(c0.places)?'Аналога с такими местами и ценой цикла нет — цену введите сами.':'');
+      // новая позиция: расценку подставляем от аналога, пока её не ввели руками
+      if(!oid && an.length && e && (e.target===o_pl||e.target===o_cy) && (!o_price.value.trim()||o_price.dataset.auto)){ o_price.value=String(an[0].price).replace('.',','); o_price.dataset.auto='1'; }
+      if(e && e.target===o_price) delete o_price.dataset.auto; }
+    const c=f(); let list=checkPrice(c,g,S.ops);
+    if(!(/^\d{4}-\d\d-\d\d$/.test(o_date.value))) list.unshift({level:'error',text:'Укажите дату изменения.'});
+    if(oid && isFinite(c.price) && op.price && Math.abs(c.price/op.price-1)*100>S.settings.warnTimeJump) list.push({level:'warn',text:`Цена меняется с ${nf(op.price,d)} до ${nf(c.price,d)} (${pct((c.price/op.price-1)*100)}). Нет ли опечатки в запятой?`});
+    let errs=list.filter(i=>i.level==='error'), warns=list.filter(i=>i.level==='warn');
+    if(errs.length){ warns=[]; list=errs; }
+    o_price.className=errs.some(i=>/Расценка|копейки/.test(i.text))?'bad':warns.length?'wbad':'';
+    const was=(document.getElementById('o_ok')||{}).checked;
+    o_msgs.innerHTML=issuesHtml(list)+(warns.length&&!errs.length?confirmBox('o_ok'):'');
+    if(was&&document.getElementById('o_ok')) o_ok.checked=true;
+    o_save.disabled= errs.length>0 || (warns.length>0 && !(document.getElementById('o_ok')||{}).checked);
+    return {c,errs};
+  };
+  opf.addEventListener('input',recheck); opf.addEventListener('change',recheck); opf.addEventListener('recheck',recheck); recheck();
+  o_save.onclick=()=>{
+    const {c,errs}=recheck(); if(errs.length) return; const date=o_date.value;
+    if(oid){
+      const ch=[]; if(c.art!==(op.art||'')) ch.push('артикул'); if(c.name!==op.name) ch.push('название'); if(c.variant!==op.variant) ch.push(`столбец ${op.variant}→${c.variant}`);
+      if(g.cycle && c.places!==op.places) ch.push(`мест ${op.places}→${c.places}`); if(g.cycle && c.cycle!==op.cycle) ch.push(`цикл ${nfa(op.cycle,3)}→${nfa(c.cycle,3)}`);
+      if(c.price!==op.price) ch.push(`цена ${nf(op.price,d)}→${nf(c.price,d)}`);
+      if(!ch.length){ closeDlg(); return; }
+      Object.assign(op,{art:c.art,name:c.name,variant:c.variant,price:c.price}); if(g.cycle) Object.assign(op,{places:c.places,cycle:c.cycle});
+      op.history.push({date,rate:c.price,reason:'Правка: '+ch.join(', ')});
+      save(`№${g.no} «${c.name}» (${c.variant}): ${ch.join(', ')}`);
+    } else {
+      const n={id:'o'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),groupId:g.id,art:c.art,name:c.name,variant:c.variant,price:c.price,history:[{date,rate:c.price,reason:'Новая позиция'}]};
+      if(g.cycle) Object.assign(n,{places:c.places,cycle:c.cycle}); S.ops.push(n);
+      save(`№${g.no}: добавлена позиция «${c.art?c.art+' ':''}${c.name}» (${c.variant}), ${nf(c.price,d)} ₽`);
+    }
+    closeDlg(); render();
+  };
+}
+function delOp(id){
+  const o=S.ops.find(x=>x.id===id), used=(S.calcs||[]).filter(c=>c.lines.some(l=>l.works.some(w=>w.link&&w.link.shop==='2'&&w.link.op===id)));
+  if(!confirm(`Удалить «${o.name}»? Её история тоже будет удалена.${used.length?`\n\nОна используется в калькуляциях (${used.length}): ${used.slice(0,8).map(c=>c.art||c.name).join(', ')}${used.length>8?'…':''}. Там появится ошибка, пока работу не привяжут к другой расценке.`:''}`)) return;
+  S.ops=S.ops.filter(x=>x.id!==id); save(`№${G(o.groupId).no}: удалена операция «${o.name}»`); closeDlg(); render();
+}
+
+// --- вставка из Excel
+function dlgPaste(gid){
+  const g=G(gid);
+  openDlg(`<div class="dlg-h"><h3>Вставить операции из Excel · №${g.no}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+  <div class="dlg-b"><div class="msg info">Скопируйте в Excel столбцы <b>Артикул · Наименование · Штук · Время (с)</b> и вставьте сюда. Если столбцов пять — третий считается операцией (<b>Артикул · Наименование · Операция · Штук · Время</b>). Если столбцов три — артикула нет.</div>
+  <textarea id="p_txt" rows="7" placeholder="1065.ВК	Коробка (вырубка)	2	6,29"></textarea>
+  <label class="f" style="margin-top:10px;max-width:220px"><span>Дата</span><input type="date" id="p_date" value="${today()}"></label>
+  <div id="p_prev"></div></div>
+  <div class="dlg-f"><span class="muted" id="p_sum" style="margin-right:auto"></span><button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="p_go" disabled>Добавить</button></div>`);
+  let rows=[];
+  const parse=()=>{
+    rows=p_txt.value.split(/\r?\n/).filter(l=>l.trim()).map(l=>{
+      let c=l.split(/\t|;/).map(x=>x.trim());
+      // три столбца без артикула: «название · штук · время» (второй и третий — числа)
+      if(c.length===3 && isFinite(num(c[1])) && isFinite(num(c[2]))) c=['',...c];
+      const five=c.length>=5 && isFinite(num(c[3])) && isFinite(num(c[4]));
+      const op=five? {id:null,groupId:gid,art:c[0]||'',name:(c[1]||'').replace(/\s+/g,' '),oper:(c[2]||'').replace(/\s+/g,' '),pcs:num(c[3]),time:num(c[4]),history:[]}
+                   : {id:null,groupId:gid,art:c[0]||'',name:(c[1]||'').replace(/\s+/g,' '),pcs:num(c[2]),time:num(c[3]),history:[]};
+      const header=isNaN(op.pcs)&&isNaN(op.time)&&/наимен|артик|штук|врем/i.test(l);
+      const list=header?[]:checkOp(op,g,S.ops.concat(rows.map(r=>r.op)));
+      if(c.length<4&&!header){ list.length=0; list.push({level:'error',text:'Не хватает столбцов: нужны артикул, наименование, штук, время (артикул можно опустить).'}); }
+      return {op,list,header};
+    }).filter(r=>!r.header);
+    const ok=rows.filter(r=>!r.list.some(i=>i.level==='error'));
+    const nw=ok.filter(r=>r.list.length).length;
+    p_prev.innerHTML=rows.length?`<table style="margin-top:8px"><thead><tr><th>Артикул</th><th>Наименование</th><th class="n">Шт</th><th class="n">Время</th><th class="n">Расценка</th><th>Контроль</th></tr></thead><tbody>${rows.map(r=>{const l=lvl(r.list);return `<tr class="${l?'r-'+l:''}"><td>${esc(r.op.art)}</td><td>${esc(r.op.name)}${r.op.oper?' · <span class="muted">'+esc(r.op.oper)+'</span>':''}</td><td class="n">${isNaN(r.op.pcs)?'?':r.op.pcs}</td><td class="n">${isNaN(r.op.time)?'?':nfa(r.op.time)}</td><td class="n">${l==='err'?'—':nf(rateOf(r.op,g),RD(g))}</td><td>${r.list.map(i=>esc(i.text)).join('<br>')||'✓'}</td></tr>`;}).join('')}</tbody></table>${nw?confirmBox('p_ok'):''}`:'';
+    const bad=rows.length-ok.length;
+    p_sum.textContent=rows.length?`Будет добавлено ${ok.length}${bad?`, пропущено с ошибками ${bad}`:''}`:'';
+    p_go.disabled=!ok.length||(nw&&!(document.getElementById('p_ok')||{}).checked);
+    return ok;
+  };
+  p_txt.oninput=parse; dlg.addEventListener('recheck',()=>{ p_go.disabled=!(document.getElementById('p_ok')||{}).checked; }, {once:false});
+  p_go.onclick=()=>{
+    const ok=parse(); const date=p_date.value||today();
+    for(const r of ok){ const o=r.op; o.id='o'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); o.history=[{date,pcs:o.pcs,time:o.time,rate:rateOf(o,g),reason:'Вставлено из Excel'}]; S.ops.push(o); }
+    save(`№${g.no}: вставлено из Excel ${ok.length} операций`); closeDlg(); render(); toast(`Добавлено операций: ${ok.length}`);
+  };
+}
+
+// --- изменение оклада одного участка
+function dlgSalary(gid){
+  const g=G(gid), piece=g.kind==='piece';
+  openDlg(`<div class="dlg-h"><h3>Новый оклад · №${g.no}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+  <div class="dlg-b" id="sf"><div class="grid3">
+    <label class="f"><span>Зарплата в месяц с премией, ₽</span><input type="text" id="s_m" value="${g.monthly}" inputmode="decimal"><div class="hint">сейчас ${money(g.monthly)}</div></label>
+    ${piece?`<label class="f"><span>Чистое время в смене, ч</span><input type="text" id="s_h" value="${String(g.netHours).replace('.',',')}" inputmode="decimal"><div class="hint">сейчас ${nfa(g.netHours)} ч</div></label>`:'<div></div>'}
+    <label class="f"><span>Действует с</span><input type="date" id="s_d" value="${today()}"></label></div>
+    <label class="f"><span>Основание (приказ, комментарий)</span><input type="text" id="s_n"></label>
+    <div id="s_res"></div></div>
+  <div class="dlg-f"><button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="s_go">Применить</button></div>`);
+  const calc=()=>{
+    const ng={...g,monthly:num(s_m.value),netHours:piece?num(s_h.value):null,history:g.history};
+    const list=checkGroup({...ng,history:[groupLast(g)]}).filter(i=>i.level==='error');
+    if(!/^\d{4}-\d\d-\d\d$/.test(s_d.value)) list.push({level:'error',text:'Укажите дату.'});
+    else if(s_d.value<groupLast(g).date) list.push({level:'error',text:`Дата раньше последнего изменения (${fd(groupLast(g).date)}).`});
+    let html='';
+    if(!list.length){
+      const a=costOf(g), b=costOf(ng), ch=(b/a-1)*100;
+      if(ch<0) list.push({level:'warn',text:`Это снижение на ${pct(ch)}.`});
+      if(ch>S.settings.warnSalaryJump) list.push({level:'warn',text:`Рост ${pct(ch)} — больше порога ${S.settings.warnSalaryJump}%.`});
+      if(Math.abs(ng.monthly/g.monthly-1)>0.9) list.push({level:'warn',text:'Оклад меняется почти вдвое или больше — нет ли опечатки?'});
+      html=`<div class="msg info">${piece?'Секунда':'Час'}: ${nf(a,piece?SD(g):0)} → <b>${nf(b,piece?SD(g):0)} ₽</b> (<span class="${pcls(ch)}">${pct(ch)}</span>)${piece?`, пересчитается ${opsOf(g.id).length} расценок`:''}.</div>`;
+    }
+    const w=list.filter(i=>i.level==='warn').length, e=list.length-w, was=(document.getElementById('s_ok')||{}).checked;
+    s_res.innerHTML=html+issuesHtml(list)+(w&&!e?confirmBox('s_ok'):'');
+    if(was&&document.getElementById('s_ok')) s_ok.checked=true;
+    s_go.disabled=e>0||(w>0&&!(document.getElementById('s_ok')||{}).checked);
+    return {ng,ok:!s_go.disabled};
+  };
+  sf.addEventListener('input',calc); sf.addEventListener('recheck',calc); calc();
+  s_go.onclick=()=>{ const {ng,ok}=calc(); if(!ok) return;
+    applyChange([{g,monthly:ng.monthly,netHours:ng.netHours}], s_d.value, s_n.value.trim()||'Изменение оклада', null);
+    closeDlg(); render(); toast('Оклад изменён, расценки пересчитаны'); };
+}
+
+// Общая точка изменения окладов: пишет историю участков и операций одним событием (его можно отменить)
+function applyChange(items, date, note, coef){
+  const ev={id:'e'+Date.now().toString(36),date,title:note,coef,kind:coef?'coef':'salary',groups:[],stats:{}};
+  for(const it of items){
+    const g=it.g, before=costOf(g);
+    if(g.kind==='tariff'){
+      g.index=R(g.index*it.coef,6);
+      g.history.push({date,index:g.index,coef:it.coef,reason:note,eventId:ev.id}); ev.groups.push(g.id); ev.stats[g.id]={before,after:g.index};
+      for(const o of opsOf(g.id)){ o.price=R(o.price*it.coef,RD(g)); o.history.push({date,rate:o.price,reason:note,eventId:ev.id}); }
+      continue;
+    }
+    g.monthly=it.monthly; if(g.kind==='piece') g.netHours=it.netHours;
+    const after=costOf(g), e={date,monthly:g.monthly,reason:note,eventId:ev.id};
+    if(g.kind==='piece'){ e.netHours=g.netHours; e.secCost=after; } else e.hourCost=after;
+    g.history.push(e); ev.groups.push(g.id); ev.stats[g.id]={before,after};
+    if(g.kind==='piece') for(const o of opsOf(g.id)) o.history.push({date,pcs:o.pcs,time:o.time,rate:rateOf(o,g),reason:note,eventId:ev.id});
+  }
+  S.events.push(ev);
+  save(`${fd(date)}: ${note} — ${items.map(i=>'№'+i.g.no).join(', ')}${coef?` (×${nfa(coef,4)})`:''}`);
+}
+function undoEvent(id){
+  const ev=S.events.find(e=>e.id===id);
+  if(!confirm(`Отменить «${ev.title}» от ${fd(ev.date)}? Оклады участков вернутся к прежним, записи этого изменения уйдут из истории.`)) return;
+  for(const gid of ev.groups){ const g=G(gid); if(!g) continue;
+    g.history=g.history.filter(e=>e.eventId!==id); const l=groupLast(g);
+    if(g.kind==='tariff') g.index=l.index;
+    if(l.monthly) g.monthly=l.monthly; if(g.kind==='piece'&&l.netHours) g.netHours=l.netHours; }
+  for(const o of S.ops){ const had=o.history.some(e=>e.eventId===id); o.history=o.history.filter(e=>e.eventId!==id);
+    if(had && o.price!=null && o.history.length) o.price=o.history.at(-1).rate; }
+  S.events=S.events.filter(e=>e.id!==id); save(`Отменено: ${ev.title} от ${fd(ev.date)}`); render(); toast('Изменение отменено');
+}
+
+// --- участок
+function dlgGroup(gid){
+  const g=gid?G(gid):{id:null,no:Math.max(0,...S.groups.map(x=>x.no))+1,name:'',categoryId:(S.categories[0]||{}).id,kind:'piece',monthly:'',netHours:6};
+  openDlg(`<div class="dlg-h"><h3>${gid?'Участок №'+g.no:'Новый участок'}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+  <div class="dlg-b" id="gf"><div class="grid3"><label class="f"><span>Номер</span><input type="text" id="g_no" value="${g.no}"></label>
+  <label class="f" style="grid-column:span 2"><span>Группа (для повышений)</span><select id="g_cat">${S.categories.map(c=>`<option value="${c.id}" ${c.id===g.categoryId?'selected':''}>${esc(c.name)}</option>`).join('')}</select></label></div>
+  <label class="f"><span>Название участка / должности</span><input type="text" id="g_name" value="${esc(g.name)}"></label>
+  ${gid?'':`<div class="grid3"><label class="f"><span>Оплата</span><select id="g_kind"><option value="piece">сдельная</option><option value="hourly">повремённая</option><option value="tariff">прейскурант</option></select></label>
+  <label class="f"><span>Зарплата в месяц с премией, ₽</span><input type="text" id="g_m"></label>
+  <label class="f"><span>Чистое время в смене, ч</span><input type="text" id="g_h" value="6"></label></div>
+  <label class="f"><span>Столбцы прейскуранта через «;» (только для прейскуранта)</span><input type="text" id="g_v" value="за 1 шт"></label>`}
+  ${gid&&g.kind==='piece'?`<div class="grid3"><label class="f"><span>Знаков в цене секунды</span><select id="g_sd">${[4,5,6,7].map(n=>`<option ${n===SD(g)?'selected':''}>${n}</option>`).join('')}</select></label>
+  <label class="f"><span>Знаков в расценке</span><select id="g_rd">${[2,3,4].map(n=>`<option ${n===RD(g)?'selected':''}>${n}</option>`).join('')}</select></label><div class="hint" style="align-self:end">Как в Excel этого участка. Смена пересчитает расценки без записи в историю.</div></div>`:''}
+  ${g.kind==='tariff'?`<label class="f"><span>Примечания к прейскуранту</span><textarea id="g_notes" rows="3">${esc(g.notes||'')}</textarea></label>`:''}
+  <div id="g_msg"></div></div>
+  <div class="dlg-f">${gid&&!opsOf(gid).length?`<button class="btn danger" style="margin-right:auto" onclick="delGroup('${gid}')">Удалить участок</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="g_go">Сохранить</button></div>`);
+  const chk=()=>{
+    const n={...g,no:num(g_no.value),name:g_name.value.trim(),categoryId:g_cat.value};
+    if(!gid){ n.kind=g_kind.value; n.monthly=n.kind==='tariff'?null:num(g_m.value); n.netHours=n.kind==='piece'?num(g_h.value):null; n.history=[];
+      if(n.kind==='tariff'){ n.variants=g_v.value.split(';').map(x=>x.trim()).filter(Boolean); n.index=1; } }
+    if(gid&&g.kind==='tariff') n.notes=g_notes.value.trim();
+    if(gid&&g.kind==='piece'){ n.secDigits=+g_sd.value; n.rateDigits=+g_rd.value; }
+    const list=checkGroup(n).filter(i=>i.level==='error');
+    if(!(isFinite(n.no)&&n.no>0)) list.push({level:'error',text:'Номер — положительное число (можно 11.1).'});
+    else if(S.groups.some(x=>x.no===n.no&&x.id!==g.id)) list.push({level:'error',text:'Такой номер уже есть.'});
+    g_msg.innerHTML=issuesHtml(list); g_go.disabled=list.length>0; return n;
+  };
+  gf.addEventListener('input',chk); gf.addEventListener('change',chk); chk();
+  g_go.onclick=()=>{ const n=chk(); if(g_go.disabled) return;
+    if(gid){ Object.assign(g,{no:n.no,name:n.name,categoryId:n.categoryId}); if(g.kind==='tariff') g.notes=n.notes;
+      if(g.kind==='piece' && (n.secDigits!==SD(g)||n.rateDigits!==RD(g))){ if(!confirm(`Изменить точность: секунда ${SD(g)}→${n.secDigits} знаков, расценка ${RD(g)}→${n.rateDigits}? Расценки пересчитаются.`)) return; g.secDigits=n.secDigits; g.rateDigits=n.rateDigits; }
+      save(`Участок №${n.no}: изменены данные`); }
+    else { n.id='g'+Date.now().toString(36); const e={date:today(),monthly:n.monthly,reason:'Новый участок'}; if(n.kind==='piece'){e.netHours=n.netHours;} n.history=[e];
+      if(n.kind==='piece') e.secCost=costOf(n); else if(n.kind==='tariff'){ delete e.monthly; e.index=1; } else e.hourCost=costOf(n); S.groups.push(n); ui.group=n.id; save(`Добавлен участок №${n.no} «${n.name}»`); }
+    closeDlg(); render(); };
+}
+function delGroup(id){ const g=G(id); if(!confirm(`Удалить участок «${g.name}»?`)) return; S.groups=S.groups.filter(x=>x.id!==id); ui.group=null; save(`Удалён участок №${g.no}`); closeDlg(); render(); }
+
+/* ===================== вкладка «Повышение» ===================== */
+function renderInc(m){
+  const st=ui.inc; if(!st.ids) st.ids=new Set();
+  const tree=S.categories.map(c=>{ const gs=S.groups.filter(g=>g.categoryId===c.id).sort((a,b)=>a.no-b.no); if(!gs.length) return '';
+    const all=gs.every(g=>st.ids.has(g.id));
+    return `<label class="cat"><input type="checkbox" ${all?'checked':''} onchange="incCat('${c.id}',this.checked)"> ${esc(c.name)}</label>`+gs.map(g=>`<label class="grp"><input type="checkbox" ${st.ids.has(g.id)?'checked':''} onchange="incG('${g.id}',this.checked)"> №${g.no} ${esc(g.name)}</label>`).join('');
+  }).join('');
+  m.innerHTML=`<div class="layout"><div class="card side tree"><h3>Кого повышаем</h3>
+    <div class="row" style="margin-bottom:6px"><button class="btn sm" onclick="incAll(true)">Все</button><button class="btn sm" onclick="incAll(false)">Никого</button></div>${tree}</div>
+  <div><div class="card"><h3>Повышение расценок на коэффициент</h3>
+    <div class="muted" style="margin-bottom:12px">У сдельных и повремённых участков коэффициент умножает оклад, и расценки пересчитываются от него по формуле. У прейскурантов коэффициент умножает сами цены. В обоих случаях каждая расценка вырастет на тот же процент — с точностью до округления.</div>
+    <div class="grid3" id="incf">
+      <label class="f"><span>Способ</span><select id="i_mode"><option value="coef" ${st.mode==='coef'?'selected':''}>коэффициент (например 1,2)</option><option value="pct" ${st.mode==='pct'?'selected':''}>процент (например 20)</option></select></label>
+      <label class="f"><span>${st.mode==='coef'?'Коэффициент':'Процент повышения'}</span><input type="text" id="i_val" value="${esc(st.value)}" inputmode="decimal"></label>
+      <label class="f"><span>Действует с</span><input type="date" id="i_date" value="${st.date}"></label>
+    </div>
+    <label class="f"><span>Основание (приказ, комментарий)</span><input type="text" id="i_note" value="${esc(st.note)}" placeholder="Индексация с 01.06.2027"></label>
+    <div id="i_prev"></div></div>
+    <div class="card" style="margin-top:16px"><h3>Проведённые изменения</h3>${eventsTable(true)}</div></div></div>`;
+  const f=document.getElementById('incf').parentElement;
+  f.addEventListener('input',e=>{ st.value=i_val.value; st.date=i_date.value; st.note=i_note.value; if(e.target.id==='i_mode'){} incPreview(); });
+  i_mode.onchange=()=>{ const v=num(st.value); st.mode=i_mode.value; if(isFinite(v)) st.value= st.mode==='pct'? String(R((v-1)*100,4)).replace('.',',') : String(R(1+v/100,6)).replace('.',','); renderInc(m); };
+  f.addEventListener('recheck',incPreview);
+  incPreview();
+}
+function incCat(cid,on){ for(const g of S.groups) if(g.categoryId===cid) on?ui.inc.ids.add(g.id):ui.inc.ids.delete(g.id); render(); }
+function incG(id,on){ on?ui.inc.ids.add(id):ui.inc.ids.delete(id); render(); }
+function incAll(on){ ui.inc.ids=new Set(on?S.groups.map(g=>g.id):[]); render(); }
+function incCoef(){ const v=num(ui.inc.value); return ui.inc.mode==='coef'? v : 1+v/100; }
+function incPreview(){
+  const st=ui.inc, k=incCoef(), gs=S.groups.filter(g=>st.ids.has(g.id)).sort((a,b)=>a.no-b.no), list=[];
+  if(!gs.length) list.push({level:'error',text:'Отметьте слева хотя бы один участок или группу.'});
+  if(!isFinite(k)) list.push({level:'error',text:'Введите число. Дробную часть можно отделить запятой.'});
+  else if(k<=0||k>3) list.push({level:'error',text:`Коэффициент ${nfa(k,4)} вне допустимого (от 0 до 3). ${st.mode==='coef'&&k>3?'Может быть, это процент? Переключите способ.':''}`});
+  else { if(k<1) list.push({level:'warn',text:`Коэффициент меньше 1 — это СНИЖЕНИЕ расценок на ${pct((k-1)*100)}.`});
+         if(k===1) list.push({level:'error',text:'Коэффициент 1 ничего не меняет.'});
+         if(k>1+S.settings.warnSalaryJump/100) list.push({level:'warn',text:`Повышение ${pct((k-1)*100)} — больше порога ${S.settings.warnSalaryJump}%.`}); }
+  if(!/^\d{4}-\d\d-\d\d$/.test(st.date)) list.push({level:'error',text:'Укажите дату.'});
+  else for(const g of gs){ if(st.date<groupLast(g).date) list.push({level:'error',text:`№${g.no}: дата раньше последнего изменения (${fd(groupLast(g).date)}).`});
+    else if(st.date===groupLast(g).date) list.push({level:'warn',text:`№${g.no}: в этот день уже было изменение (${fd(st.date)}).`}); }
+  for(const g of gs){ const gi=checkGroup(g).filter(i=>i.level==='error'); if(gi.length) list.push({level:'error',text:`№${g.no}: сначала исправьте ошибки участка.`}); }
+  const errs=list.filter(i=>i.level==='error').length, warns=list.length-errs;
+  let tbl='';
+  if(!errs){
+    const rows=gs.map(g=>{
+      if(g.kind==='tariff'){ const rs=opsOf(g.id).filter(o=>o.price).map(o=>(R(o.price*k,RD(g))/o.price-1)*100); return {g,nm:null,a:g.index,b:g.index*k,rs}; }
+      const nm=Math.round(g.monthly*k), ng={...g,monthly:nm}, a=costOf(g), b=costOf(ng);
+      let rs=[]; if(g.kind==='piece') for(const o of opsOf(g.id)){ const r0=rateOf(o,g), r1=rateOf(o,ng); if(r0) rs.push((r1/r0-1)*100); }
+      return {g,nm,a,b,rs};
+    });
+    tbl=`<table style="margin-top:6px"><thead><tr><th>Участок</th><th class="n">Оклад сейчас</th><th class="n">Станет</th><th class="n">Секунда / час</th><th class="n">Рост</th><th class="n">Расценок</th><th class="n">Рост расценок, мин…макс</th></tr></thead><tbody>${rows.map(r=>`<tr><td>№${r.g.no} ${esc(r.g.name)}</td>${r.g.kind==='tariff'?`<td class="n muted" colspan="3">прейскурант: все цены ×${nfa(k,4)}</td>`:`<td class="n">${money(r.g.monthly)}</td><td class="n"><b>${money(r.nm)}</b></td><td class="n">${nf(r.a,r.g.kind==='piece'?SD(r.g):0)} → <b>${nf(r.b,r.g.kind==='piece'?SD(r.g):0)}</b></td>`}<td class="n ${pcls(r.b/r.a-1)}">${pct((r.b/r.a-1)*100,2)}</td><td class="n">${r.rs.length||'—'}</td><td class="n">${r.rs.length?pct(Math.min(...r.rs))+' … '+pct(Math.max(...r.rs)):'—'}</td></tr>`).join('')}</tbody></table>
+    <div class="hint">Оклад округляется до рубля, секунда и расценка — до стольких знаков, сколько задано у участка (обычно 5 и 3). Разброс у мелких расценок — следствие округления до копейки.</div>`;
+  }
+  const was=(document.getElementById('i_ok')||{}).checked;
+  i_prev.innerHTML=issuesHtml(list)+tbl+(warns&&!errs?confirmBox('i_ok'):'')+`<div class="row" style="margin-top:12px"><button class="btn pri" id="i_go" ${errs||(warns&&!was)?'disabled':''}>Применить повышение${gs.length?` к ${gs.length} ${plural(gs.length,'участку','участкам','участкам')}`:''}</button></div>`;
+  if(was&&document.getElementById('i_ok')) i_ok.checked=true;
+  i_go.onclick=()=>{ if(!confirm(`Применить ×${nfa(k,4)} (${pct((k-1)*100,2)}) с ${fd(st.date)} к ${gs.length} участкам?`)) return;
+    applyChange(gs.map(g=>g.kind==='tariff'?{g,coef:k}:{g,monthly:Math.round(g.monthly*k),netHours:g.netHours}), st.date, st.note.trim()||`Повышение ×${nfa(k,4)}`, k);
+    st.ids=new Set(); render(); toast('Повышение применено'); };
+}
+function eventsTable(withUndo){
+  const ev=S.events.slice().sort((a,b)=>a.date<b.date?1:-1);
+  const last=S.events.filter(e=>e.kind!=='import').at(-1);
+  if(!ev.length) return '<div class="empty">Пока ничего.</div>';
+  return `<table><thead><tr><th>Дата</th><th>Что</th><th>Участки</th><th class="n">Коэф.</th><th class="n">Средний рост</th>${withUndo?'<th></th>':''}</tr></thead><tbody>${ev.map(e=>{
+    const ps=Object.values(e.stats||{}).map(s=>(s.after/s.before-1)*100); const avg=ps.length?ps.reduce((a,b)=>a+b,0)/ps.length:null;
+    return `<tr><td>${fd(e.date)}</td><td>${esc(e.title)}</td><td>${e.groups.map(id=>G(id)?'№'+G(id).no:'').join(', ')}</td><td class="n">${e.coef?nfa(e.coef,4):'—'}</td><td class="n ${pcls(avg)}">${pct(avg)}</td>${withUndo?`<td>${e===last?`<button class="btn sm danger" onclick="undoEvent('${e.id}')">Отменить</button>`:''}</td>`:''}</tr>`;}).join('')}</tbody></table>`;
+}
+
+/* ===================== вкладка «Аналитика» ===================== */
+function renderAn(m){
+  const dates=[...new Set(S.groups.flatMap(g=>g.history.map(e=>e.date)))].sort();
+  if(!ui.cmpDate||(ui.cmpDate!=='last'&&!dates.includes(ui.cmpDate))) ui.cmpDate='last';
+  const cd=ui.cmpDate, LAST=cd==='last';
+  const rows=S.groups.slice().sort((a,b)=>a.no-b.no).map(g=>{
+    // «last» — у каждого участка своя дата прошлого повышения; иначе — значение, действовавшее на выбранную дату
+    const v0e=LAST? groupPrev(g) : valueAt(g,cd), v0=v0e&&metric(v0e,g), v1=costOf(g), gc=groupChange(g);
+    const ch=v0?(v1/v0-1)*100:null;
+    let rs=[]; if(g.kind!=='hourly') for(const o of opsOf(g.id)){ let b=null; if(LAST) b=opBase(o); else for(const e of o.history) if(e.date<=cd) b=e; if(b&&b.rate) rs.push((rateOf(o,g)/b.rate-1)*100); }
+    rs.sort((a,b)=>a-b);
+    return {g,v0,v0d:v0e&&v0e.date,v1,ch,gc,rs,med:rs.length?rs[rs.length>>1]:null,odd:ch==null?0:rs.filter(x=>Math.abs(x-ch)>S.settings.warnRateDeviation).length};
+  });
+  const valid=rows.filter(r=>r.ch!=null), avg=valid.length?valid.reduce((a,r)=>a+r.ch,0)/valid.length:null;
+  const allR=rows.flatMap(r=>r.rs);
+  const cats=S.categories.map(c=>{ const rr=valid.filter(r=>r.g.categoryId===c.id); return {c,n:rr.length,avg:rr.length?rr.reduce((a,r)=>a+r.ch,0)/rr.length:null}; });
+  const maxAbs=Math.max(5,...valid.map(r=>Math.abs(r.ch)));
+  const bars=valid.map((r,i)=>{ const w=Math.abs(r.ch)/maxAbs*100; return `<div class="row" style="gap:8px;margin:3px 0;flex-wrap:nowrap"><div style="width:240px;flex:none;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(r.g.name)}">№${r.g.no} ${esc(r.g.name)}</div><div style="flex:1;background:var(--soft);border-radius:4px;height:18px;position:relative"><div style="width:${w}%;height:100%;border-radius:4px;background:${r.ch>=0?'#5b8def':'#e06b70'}"></div></div><div class="n ${pcls(r.ch)}" style="width:70px;text-align:right">${pct(r.ch)}</div></div>`; }).join('');
+  m.innerHTML=`<div class="card"><div class="row"><h3 style="margin:0;flex:1">На сколько выросли расценки</h3>
+    <label class="row" style="gap:6px">по сравнению с <select style="width:auto" onchange="ui.cmpDate=this.value;render()"><option value="last" ${LAST?'selected':''}>прошлым повышением каждого участка</option>${dates.map(d=>`<option value="${d}" ${d===cd?'selected':''}>${fd(d)}</option>`).join('')}</select></label></div>
+    <div class="muted" style="margin:4px 0 14px">${LAST?'Каждый участок сравнивается со значением до своего последнего изменения оклада.':'Берётся значение, действовавшее на '+fd(cd)+', и сравнивается с текущим.'}</div>
+    <div class="stats"><div class="card stat"><span>Средний рост по участкам</span><b class="${pcls(avg)}">${pct(avg)}</b></div>
+    <div class="card stat"><span>Расценок сравнено</span><b>${allR.length}</b></div>
+    <div class="card stat"><span>Медиана роста расценок</span><b>${pct(allR.length?allR.slice().sort((a,b)=>a-b)[allR.length>>1]:null)}</b></div>
+    <div class="card stat"><span>Выбиваются из повышения участка</span><b class="${rows.reduce((a,r)=>a+r.odd,0)?'down':''}">${rows.reduce((a,r)=>a+r.odd,0)}</b></div></div>
+    ${bars||'<div class="empty">Нет данных для сравнения с этой датой.</div>'}</div>
+  <div class="card" style="margin-top:16px"><h3>По группам</h3><table><thead><tr><th>Группа</th><th class="n">Участков</th><th class="n">Средний рост ${LAST?'с прошлого повышения':'с '+fd(cd)}</th></tr></thead><tbody>${cats.map(x=>`<tr><td>${esc(x.c.name)}</td><td class="n">${x.n}</td><td class="n ${pcls(x.avg)}">${pct(x.avg)}</td></tr>`).join('')}</tbody></table></div>
+  <div class="card" style="margin-top:16px"><h3>По участкам</h3><div class="scroll-x"><table><thead><tr><th>Участок</th><th class="n">Было</th><th class="n">Сейчас</th><th class="n">Рост</th><th class="n">Последнее повышение</th><th class="n">Расценки: мин … медиана … макс</th><th class="n">Выбиваются</th></tr></thead><tbody>${rows.map(r=>{const d=r.g.kind==='piece'?SD(r.g):0; return `<tr class="click" onclick="ui.tab='rates';ui.group='${r.g.id}';render()"><td>№${r.g.no} ${esc(r.g.name)}</td>${r.g.kind==='tariff'?`<td class="n">${r.v0?'прейскурант <span class="muted">('+fd(r.v0d)+')</span>':'—'}</td><td class="n">прейскурант</td>`:`<td class="n">${r.v0?nf(r.v0,d)+' <span class="muted">('+fd(r.v0d)+')</span>':'—'}</td><td class="n">${nf(r.v1,d)} ${r.g.kind==='piece'?'₽/с':'₽/ч'}</td>`}<td class="n ${pcls(r.ch)}"><b>${pct(r.ch)}</b></td><td class="n">${r.gc?`<span class="${pcls(r.gc.pct)}">${pct(r.gc.pct)}</span> с ${fd(r.gc.to)}`:'—'}</td><td class="n">${r.rs.length?`${pct(r.rs[0])} … ${pct(r.med)} … ${pct(r.rs.at(-1))}`:'—'}</td><td class="n ${r.odd?'down':''}">${r.rs.length?r.odd:'—'}</td></tr>`;}).join('')}</tbody></table></div></div>
+  <div class="card" style="margin-top:16px"><h3>История изменений</h3>${eventsTable(false)}</div>
+  <div class="card" style="margin-top:16px"><h3>Цена секунды, цена часа и индекс прейскуранта по датам</h3><div class="scroll-x">${historyMatrix(dates)}</div></div>`;
+}
+function historyMatrix(dates){
+  return `<table><thead><tr><th>Участок</th>${dates.map(d=>`<th class="n">${fd(d)}</th>`).join('')}</tr></thead><tbody>${S.groups.slice().sort((a,b)=>a.no-b.no).map(g=>{
+    let prev=null; return `<tr><td style="white-space:nowrap">№${g.no} ${esc(g.name.length>40?g.name.slice(0,40)+'…':g.name)}</td>${dates.map(d=>{const e=g.history.find(x=>x.date===d); if(!e||!metric(e,g)) return '<td></td>'; const v=metric(e,g), p=prev; prev=v; return `<td class="n">${g.kind==='tariff'?'×'+nfa(v,3):nf(v,g.kind==='piece'?SD(g):0)}${p?`<br><small class="${pcls(v/p-1)}">${pct((v/p-1)*100)}</small>`:''}</td>`;}).join('')}</tr>`;}).join('')}</tbody></table>`;
+}
+
+/* ===================== вкладка «Проверка» ===================== */
+function renderChk(m){
+  const e=ISS.filter(i=>i.level==='error'), w=ISS.filter(i=>i.level==='warn');
+  const blk=(list,cls,title)=>list.length?`<div class="card" style="margin-top:16px"><h3>${title} · ${list.length}</h3><table><tbody>${list.map(i=>`<tr class="r-${cls}"><td style="width:38%">${esc(i.where)}</td><td>${esc(i.text)}</td><td style="width:90px">${i.cid?`<button class="btn sm" onclick="ui.tab='calc';render();dlgCalc('${i.cid}')">Открыть</button>`:i.gid?`<button class="btn sm" onclick="openIssue('${i.gid}','${i.oid||''}')">Открыть</button>`:`<button class="btn sm" onclick="go('set')">Открыть</button>`}</td></tr>`).join('')}</tbody></table></div>`:'';
+  m.innerHTML=`<div class="card"><h3>Контроль данных</h3><div class="muted">Программа проверяет все оклады, время, штуки и калькуляции после каждого изменения.
+    <b style="color:var(--err)">Ошибки</b> — данные неверные, расценку по ним считать нельзя. <b style="color:var(--warn)">Предупреждения</b> — данные выглядят подозрительно: проверьте и, если всё верно, оставьте как есть.</div>
+    ${!ISS.length?'<div class="msg ok" style="margin-top:12px">Замечаний нет.</div>':''}</div>${blk(e,'err','Ошибки')}${blk(w,'warn','Предупреждения')}`;
+}
+function openIssue(gid,oid){ ui.tab='rates'; ui.group=gid; ui.q=''; render(); if(oid) dlgOp(oid); }
+
+/* ===================== вкладка «Настройки» ===================== */
+function renderSet(m){
+  const s=S.settings;
+  m.innerHTML=`<div class="grid2" style="gap:16px;align-items:start"><div class="card"><h3>Параметры формулы</h3>
+    <div class="muted" style="margin-bottom:12px">Секунда = оклад ÷ (1 + премия) ÷ рабочих дней ÷ (чистое время × 3600). Расценка = секунда × контрольное время ÷ штук за операцию.</div>
+    <div id="setf"><div class="grid2">
+    <label class="f"><span>Премия в окладе, %</span><input type="text" id="s_b" value="${s.bonusPct}"></label>
+    <label class="f"><span>Среднее число рабочих дней в месяце</span><input type="text" id="s_w" value="${String(s.workDays).replace('.',',')}"></label>
+    <label class="f"><span>Длительность смены, ч</span><input type="text" id="s_s" value="${s.shiftHours}"></label>
+    <label class="f"><span>НДФЛ для расчёта «на руки», %</span><input type="text" id="s_n" value="${s.ndflPct}"></label>
+    <label class="f"><span>Калькуляция: коэффициент налогов</span><input type="text" id="s_c1" value="${String(s.calcTax1??1.3).replace('.',',')}"></label>
+    <label class="f"><span>Калькуляция: второй множитель</span><input type="text" id="s_c2" value="${String(s.calcTax2??1.2).replace('.',',')}"><div class="hint">В Excel: с премией × 1,3 × ИТР × 1,2</div></label></div>
+    <h3 style="margin-top:8px">Пороги контроля</h3><div class="grid3">
+    <label class="f"><span>Рост оклада больше, %</span><input type="text" id="s_j" value="${s.warnSalaryJump}"></label>
+    <label class="f"><span>Изменение времени больше, %</span><input type="text" id="s_t" value="${s.warnTimeJump}"></label>
+    <label class="f"><span>Расценка отклонилась от участка больше, п.п.</span><input type="text" id="s_r" value="${s.warnRateDeviation}"></label></div>
+    <div id="set_msg"></div><button class="btn pri" id="set_go">Сохранить параметры</button></div></div>
+  <div><div class="card"><h3>Группы участков</h3><div class="muted" style="margin-bottom:8px">Группа — набор участков, который повышают одним коэффициентом.</div>
+    <table><tbody>${S.categories.map(c=>{const n=S.groups.filter(g=>g.categoryId===c.id).length; return `<tr><td>${esc(c.name)}</td><td class="n">${n} ${plural(n,'участок','участка','участков')}</td><td style="width:170px"><button class="btn sm" onclick="renCat('${c.id}')">Переименовать</button> ${n?'':`<button class="btn sm danger" onclick="delCat('${c.id}')">✕</button>`}</td></tr>`;}).join('')}</tbody></table>
+    <button class="btn sm" style="margin-top:10px" onclick="addCat()">+ Группа</button><div class="hint">Участок переносится в другую группу кнопкой «Участок…» на вкладке «Расценки».</div></div>
+  <div class="card" style="margin-top:16px"><h3>Резервная копия и перенос</h3>
+    <div class="muted" style="margin-bottom:10px">Данные хранятся в этом браузере на этом компьютере. Сохраняйте копию после изменений — по ней же данные переносятся на другой компьютер.</div>
+    <div class="row"><button class="btn pri" onclick="backup()">Сохранить копию (.json)</button><button class="btn" onclick="restore()">Загрузить копию</button><button class="btn" onclick="exportExcel()">Выгрузить в Excel</button><button class="btn" onclick="print()">Печать</button></div>
+    <div class="hint">Последняя копия: ${S.meta&&S.meta.backup?new Date(S.meta.backup).toLocaleString('ru-RU'):'не сохранялась'}.</div>
+    <div class="row" style="margin-top:14px"><button class="btn sm danger" onclick="resetAll()">Вернуть данные из исходного Excel</button></div></div></div></div>
+  <div class="card" style="margin-top:16px"><h3>Журнал изменений</h3>${S.log.length?`<table><tbody>${S.log.slice(0,200).map(l=>`<tr><td style="width:150px;white-space:nowrap">${new Date(l.ts).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})}</td><td>${esc(l.text)}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">Изменений пока не было.</div>'}</div>`;
+  const read=()=>({bonusPct:num(s_b.value),workDays:num(s_w.value),shiftHours:num(s_s.value),ndflPct:num(s_n.value),calcTax1:num(s_c1.value),calcTax2:num(s_c2.value),warnSalaryJump:num(s_j.value),warnTimeJump:num(s_t.value),warnRateDeviation:num(s_r.value)});
+  const chk=()=>{ const n=read(), list=checkSettings(n);
+    for(const k of ['warnSalaryJump','warnTimeJump','warnRateDeviation']) if(!(n[k]>0)) list.push({level:'error',text:'Пороги контроля — положительные числа.'});
+    const changed=['bonusPct','workDays','shiftHours'].some(k=>n[k]!==s[k]);
+    set_msg.innerHTML=issuesHtml(list.slice(0,3))+(changed&&!list.length?`<div class="msg warn">Изменение формулы сразу пересчитает ВСЕ цены секунды и расценки без записи в историю повышений. Для обычного повышения используйте вкладку «Повышение».</div>`:'');
+    set_go.disabled=list.length>0; return n; };
+  setf.addEventListener('input',chk); chk();
+  set_go.onclick=()=>{ const n=chk(); if(set_go.disabled) return; if(!confirm('Сохранить параметры?')) return; S.settings=n; save('Изменены параметры расчёта'); render(); toast('Сохранено'); };
+}
+function addCat(){ const n=prompt('Название группы'); if(!n||!n.trim()) return; S.categories.push({id:'c'+Date.now().toString(36),name:n.trim()}); save(`Добавлена группа «${n.trim()}»`); render(); }
+function renCat(id){ const c=S.categories.find(x=>x.id===id), n=prompt('Название группы',c.name); if(!n||!n.trim()) return; c.name=n.trim(); save(`Группа переименована: «${c.name}»`); render(); }
+function delCat(id){ S.categories=S.categories.filter(x=>x.id!==id); save('Удалена пустая группа'); render(); }
+function download(name, content, type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function backup(){ S.meta=S.meta||{}; S.meta.backup=new Date().toISOString(); download(`расценки-цех2-копия-${today()}.json`, JSON.stringify(S,null,1), 'application/json'); save(); render(); }
+function restore(){
+  const inp=document.createElement('input'); inp.type='file'; inp.accept='.json,application/json';
+  inp.onchange=()=>{ const f=inp.files[0]; if(!f) return; f.text().then(t=>{
+    let d; try{ d=JSON.parse(t); }catch(e){ alert('Файл не читается: это не копия расценок.'); return; }
+    const bad=!d||!Array.isArray(d.groups)||!Array.isArray(d.ops)||!d.settings||!Array.isArray(d.categories)||d.groups.some(g=>!Array.isArray(g.history))||d.ops.some(o=>!Array.isArray(o.history)||!d.groups.some(g=>g.id===o.groupId));
+    if(bad){ alert('Файл повреждён или это не копия расценок — загрузка отменена, текущие данные не тронуты.'); return; }
+    if((d.shop||'')!==(SEED.shop||'') && !confirm(`Похоже, это копия из другой программы (${d.shop==='ceh2'?'цех 2':'цех 1'}), а открыта программа ${SEED.shop==='ceh2'?'цеха 2':'цеха 1'}. Всё равно загрузить?`)) return;
+    if(!confirm(`Заменить текущие данные копией? В копии ${d.groups.length} участков, ${d.ops.length} операций${Array.isArray(d.calcs)?' и '+d.calcs.length+' калькуляций':''}.`)) return;
+    if(!Array.isArray(d.calcs)){ d.calcs=S.calcs||[]; alert('В копии нет калькуляций (она старее) — текущие калькуляции оставлены.'); }
+    d.events=d.events||[]; d.log=d.log||[]; S=d; save('Загружена резервная копия'); ui.group=null; render(); toast('Копия загружена'); }); };
+  inp.click();
+}
+function resetAll(){ if(!confirm('Удалить все изменения и вернуть данные из исходного Excel? Сначала лучше сохранить копию.')) return; S=clone(SEED); S.meta={created:new Date().toISOString()}; save('Данные возвращены к исходному Excel'); ui.group=null; render(); }
+
+/* ===================== выгрузка в Excel (SpreadsheetML) ===================== */
+function exportExcel(){
+  const x=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const cell=(v,st)=> v==null||v===''?`<Cell${st?` ss:StyleID="${st}"`:''}/>`: typeof v==='number'&&isFinite(v)?`<Cell${st?` ss:StyleID="${st}"`:''}><Data ss:Type="Number">${v}</Data></Cell>`:`<Cell${st?` ss:StyleID="${st}"`:''}><Data ss:Type="String">${x(v)}</Data></Cell>`;
+  const row=(cells,st)=>`<Row>${cells.map(c=>Array.isArray(c)?cell(c[0],c[1]):cell(c,st)).join('')}</Row>`;
+  const used=new Set();
+  const sheet=(name,rows,widths)=>{ let n=name.replace(/[\\/?*[\]:]/g,' ').slice(0,31), i=2; while(used.has(n)) n=name.slice(0,28)+' '+i++; used.add(n);
+    return `<Worksheet ss:Name="${x(n)}"><Table>${(widths||[]).map(w=>`<Column ss:Width="${w}"/>`).join('')}${rows.join('')}</Table></Worksheet>`; };
+  const s=S.settings, sheets=[];
+  const sum=[row(['Сдельные расценки, цех 2 — сводка на '+fd(today())],'h'),row([]),row(['№','Участок','Группа','Оплата','Оклад с премией','Чистое время, ч','Секунда, ₽','Час, ₽','Действует с','Прошлое значение','С даты','Рост, %'],'th')];
+  for(const g of S.groups.slice().sort((a,b)=>a.no-b.no)){ const c=calcGroup(g), gc=groupChange(g);
+    if(g.kind==='tariff'){ sum.push(row([g.no,g.name,(S.categories.find(k=>k.id===g.categoryId)||{}).name,'прейскурант','','','','',fd(groupLast(g).date),gc?'индекс '+R(gc.a,4):'',gc?fd(gc.from):'',gc?R(gc.pct,2):''])); continue; }
+    sum.push(row([g.no,g.name,(S.categories.find(k=>k.id===g.categoryId)||{}).name,g.kind==='piece'?'сдельная':'повремённая',g.monthly,g.kind==='piece'?g.netHours:'',g.kind==='piece'?c.sec:'',g.kind==='piece'?R(c.hour,4):c.hourCost,fd(groupLast(g).date),gc?gc.a:'',gc?fd(gc.from):'',gc?R(gc.pct,2):''])); }
+  sheets.push(sheet('Сводка',sum,[30,330,170,80,95,80,80,70,75,90,75,60]));
+  for(const g of S.groups.slice().sort((a,b)=>a.no-b.no)){
+    if(g.kind==='tariff'){
+      const gc=groupChange(g), rows=[row([`№${g.no}. ${g.name}`],'h'),row(['','Прейскурант: готовые расценки, действует с '+fd(groupLast(g).date)])];
+      if(g.notes) rows.push(row(['',g.notes]));
+      const K=o=>o.art+'\u0001'+o.name, cy=g.cycle?['Мест в электроде','Цена цикла (база)']:[];
+      rows.push(row([]),row(['Артикул','Наименование',...cy,...g.variants],'th'));
+      for(const n of [...new Set(opsOf(g.id).map(K))]){ const rr=opsOf(g.id).filter(x=>K(x)===n), o0=rr[0];
+        rows.push(row([o0.art,o0.name,...(g.cycle?[o0.places,o0.cycle]:[]),...g.variants.map(v=>{const o=rr.find(x=>x.variant===v); return o?[o.price,'b']:'';})])); }
+      rows.push(row([]),row(['Артикул','Наименование','Столбец','Расценка, ₽','Прошлая'+(gc?' (на '+fd(gc.from)+')':''),'Рост, ₽','Рост, %','Изменено'],'th'));
+      for(const o of opsOf(g.id)){ const b=opBase(o); rows.push(row([o.art,o.name,o.variant,o.price,b?b.rate:'',b?R(o.price-b.rate,RD(g)):'',b&&b.rate?R((o.price/b.rate-1)*100,2):'',fd(o.history.at(-1).date)])); }
+      sheets.push(sheet(`№${g.no} ${g.name}`,rows,[110,360,...(g.cycle?[70,70]:[]),...g.variants.map(()=>85)])); continue;
+    }
+    const c=calcGroup(g), rows=[row([`№${g.no}. ${g.name}`],'h'),row([])];
+    const info=[['ЗПЛ в месяц с премией '+s.bonusPct+'% (начисленная)',g.monthly],['ЗПЛ в месяц без премии',R(c.base,2)],['На руки в среднем (минус НДФЛ '+s.ndflPct+'%)',R(c.net,2)],['ЗПЛ за полный день без премии',R(c.day,4)],['ЗПЛ за один час без премии',R(c.hour,4)],['Рабочих часов в смене',s.shiftHours]];
+    if(g.kind==='piece') info.push(['Чистое время для расчёта расценки, ч',g.netHours],['Стоимость одной минуты рабочего времени',R(c.min,6)],['Стоимость одной секунды чистого рабочего времени',c.sec]);
+    else info.push(['Стоимость часа',c.hourCost]);
+    info.push(['Действует с',fd(groupLast(g).date)]);
+    for(const [a,b] of info) rows.push(row(['',a,'','',b]));
+    if(g.kind==='piece'){
+      const gc=groupChange(g);
+      rows.push(row([]),row(['№','Дата изменения','Артикул','Наименование изделия','Операция',g.pcsLabel||'Штук за операцию',g.timeLabel||'Контрольное время, с','Среднее время на 1 шт, с','Расценка без премии, ₽/шт','Прошлая расценка'+(gc?' (на '+fd(gc.from)+')':''),'Рост, ₽','Рост, %'],'th'));
+      opsOf(g.id).forEach((o,i)=>{ const r=rateOf(o,g), b=opBase(o);
+        rows.push(row([i+1,fd(o.history.at(-1).date),o.art,o.name,o.oper||'',o.pcs,o.time,R(o.time/o.pcs,4),[r,'b'],b?b.rate:'',b?R(r-b.rate,RD(g)):'',b&&b.rate?R((r/b.rate-1)*100,2):''])); });
+    }
+    sheets.push(sheet(`№${g.no} ${g.name}`,rows,[30,90,95,330,200,70,80,80,95,95,60,60]));
+  }
+  { const cs=S.calcs.slice().sort((a,b)=>a.art.localeCompare(b.art,'ru',{numeric:true}));
+    const t=[row(['Калькуляции: итоги на '+fd(today())],'h'),row([]),row(['Артикул','Наименование','Дата калькуляции','По расценкам в калькуляции','Сейчас','Рост, %','С премией','С налогами и ИТР','Коэф. ИТР','Работ привязано','Работ всего','Откуда'],'th')];
+    const dt=[row(['Калькуляции: состав'],'h'),row([]),row(['Артикул','Составная часть','Кол-во','Вид работы','Расценка сейчас, ₽','×','Сумма за часть, ₽','В калькуляции, ₽','Откуда цена'],'th')];
+    for(const c of cs){ const now=calcNow(c), then=calcThen(c), f=calcFull(now,c), {n,k}=calcLinks(c);
+      t.push(row([c.art,c.name,fd(c.date),R(then,4),[isFinite(now)?R(now,4):'ошибка','b'],then>0&&isFinite(now)?R((now/then-1)*100,2):'',isFinite(now)?R(f.bonus,4):'',isFinite(now)?R(f.full,2):'',c.itr,k,n,c.src==='auto'?'собрана из расценок цеха 2':c.src==='xls'?'Excel':'введена в программе']));
+      dt.push(row([c.art,c.name],'b'));
+      for(const l of c.lines) for(const w of l.works){ const li=w.link&&linkInfo(w.link), v=workNow(w);
+        dt.push(row(['',l.comp,l.qty,WT[w.k]||w.k,isFinite(v)?R(v/(w.n||1),4):'ошибка',w.n,isFinite(v)?R(v*l.qty,4):'',w.v!=null?R(w.v*l.qty,4):'',li?(li.missing?'расценка удалена':li.label+' · '+li.text):'ручная цифра'])); } }
+    sheets.push(sheet('Калькуляции итоги',t,[110,330,75,90,80,60,80,90,60,60,60,150]));
+    sheets.push(sheet('Калькуляции состав',dt,[110,220,50,200,80,40,80,80,330])); }
+  const ar=[row(['Аналитика: изменения'],'h'),row([]),row(['Дата','Что','Участки','Коэффициент'],'th')];
+  for(const e of S.events) ar.push(row([fd(e.date),e.title,e.groups.map(id=>G(id)?'№'+G(id).no:'').join(', '),e.coef||'']));
+  ar.push(row([]),row(['Замечания контроля'],'h'),row(['Уровень','Где','Что'],'th'));
+  for(const i of ISS) ar.push(row([i.level==='error'?'ОШИБКА':'проверить',i.where,i.text]));
+  sheets.push(sheet('Аналитика и контроль',ar,[80,330,330,80]));
+  const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Size="12"/></Style><Style ss:ID="th"><Font ss:Bold="1"/><Interior ss:Color="#EEF1F6" ss:Pattern="Solid"/><Alignment ss:WrapText="1" ss:Vertical="Top"/></Style><Style ss:ID="b"><Font ss:Bold="1"/></Style></Styles>${sheets.join('')}</Workbook>`;
+  download(`Сдельные расценки цех 2 ${today()}.xls`, xml, 'application/vnd.ms-excel');
+}
+
+/* ===================== калькуляции артикулов ===================== */
+// Калькуляция — из каких работ складывается изделие: составные части × количество, у каждой части — работы.
+// Работа либо привязана к расценке (цеха 2 или цеха 1) и тогда сама меняется при повышении,
+// либо записана цифрой, как в Excel, и тогда её надо обновлять руками.
+const WT={F:'сварка (возможно снятие облоя)',G:'снятие облоя',H:'ввар файлов',I:'резка',J:'прокол отверстий',M:'вставка арт. в арт.',N:'вырубка, биговка на тигеле',
+  Q:'подборка, сборка',R:'сверловка, сбивка углов, фальцовка',S:'тиснение фольгой, тиснение',T:'шёлк',U:'пересчёт, пробивка листов',
+  V:'приклейка поролона, фальцовка, усиление корешка скотчем',W:'склейка коробочки или чехла',X:'установка механизма, пружина, вставка полос',Y:'приклейка стикера',Z:'упаковка финишная'};
+const WTN={J:'отверстий',N:'шт. на тигеле'};
+const SHOP1_SNAP=/*__SHOP1__*/null;
+let SH1=null, OPIDX=null;
+// Расценки цеха 1 живут в другой программе. Если она открывалась в этом же браузере, её данные лежат здесь же
+// (у файлов, открытых с диска, общее хранилище) — берём их, иначе снимок расценок на 01.06.2026.
+function loadShop1(){
+  let st=null, src='snap', when=null;
+  try{ const raw=localStorage.getItem('sdelnye-rascenki.v1'); if(raw){ const d=JSON.parse(raw); if(Array.isArray(d.groups)&&Array.isArray(d.ops)&&d.settings){ st=d; src='live'; when=d.meta&&(d.meta.changed||d.meta.created); } } }catch(e){}
+  if(!st) st=SHOP1_SNAP;
+  SH1={src,when,st,G:Object.fromEntries(st.groups.map(g=>[g.id,g])),O:Object.fromEntries(st.ops.map(o=>[o.id,o]))};
+}
+function sh1Rate(o){ const g=SH1.G[o.groupId]; if(!g) return null; if(g.kind==='tariff') return o.price; if(g.kind!=='piece') return null; return R(calcGroup(g,SH1.st.settings).sec*o.time/o.pcs,RD(g)); }
+function opById(id){ if(!OPIDX) OPIDX=new Map(S.ops.map(o=>[o.id,o])); return OPIDX.get(id); }
+function opText(o){ return [o.art,o.name,o.oper||'',o.variant&&o.variant!=='за 1 шт'?o.variant:''].filter(Boolean).join(' · '); }
+function linkInfo(l){
+  if(!l) return null;
+  if(l.shop==='2'){ const o=opById(l.op); if(!o) return {missing:true}; const g=G(o.groupId); return {o,g,rate:rateOf(o,g),label:`цех 2 · №${g.no}`,text:opText(o)}; }
+  const o=SH1.O[l.op]; if(!o) return {missing:true}; const g=SH1.G[o.groupId]; return {o,g,rate:sh1Rate(o),label:`цех 1 · №${g.no}`,text:opText(o)};
+}
+function workNow(w){ if(w.bad!=null) return NaN; if(w.link){ const li=linkInfo(w.link); return !li||li.missing||li.rate==null? NaN : li.rate*(w.n??1); } return w.r==null? NaN : w.r*(w.n??1); }
+function calcSum(c,f){ let s=0; for(const l of c.lines){ let t=0; for(const w of l.works) t+=f(w); s+=l.qty*t; } return s; }
+// «в калькуляции» — цифры на дату калькуляции; работы, добавленные позже, тогда стоили 0
+const calcNow=c=>calcSum(c,workNow), calcThen=c=>calcSum(c,w=>w.v??0);
+function calcFull(base,c){ const s=S.settings, b=base*(1+s.bonusPct/100); return {base,bonus:b,full:b*(s.calcTax1??1.3)*(s.calcTax2??1.2)*c.itr}; }
+function calcLinks(c){ let n=0,k=0; for(const l of c.lines) for(const w of l.works){ n++; if(w.link) k++; } return {n,k}; }
+
+function checkCalc(c, dupN){
+  const out=[], E=t=>out.push({level:'error',text:t}), W=t=>out.push({level:'warn',text:t});
+  if(!c.art&&!c.name) E('Нет ни артикула, ни наименования.'); else if(!c.art) W('Нет артикула.');
+  if(!(isFinite(c.itr)&&c.itr>0&&c.itr<10)) E('Коэффициент ИТР — положительное число (обычно 2,7).');
+  if(!/^\d{4}-\d\d-\d\d$/.test(c.date||'')) E('Нет даты калькуляции.');
+  if(!c.lines.length) E('Нет ни одной составной части.');
+  else if(!c.lines.some(l=>l.works.length)) W('В калькуляции нет ни одной работы — не заполнена?');   // покупная часть без работ — нормально, но не всё изделие
+  for(const l of c.lines){
+    const nm=`«${l.comp||'без названия'}»`;
+    if(!(isFinite(l.qty)&&l.qty>0)) E(`${nm}: количество должно быть больше нуля.${l.qty==null&&c.src==='xls'?' В Excel ячейка пустая, поэтому эта часть не попала в итог.':''}`);
+    else if(l.qty>1000) W(`${nm}: количество ${nfa(l.qty)} — нет ли лишнего нуля?`);
+    for(const w of l.works){
+      const wn=`${nm}, ${WT[w.k]||w.k}`;
+      if(w.bad!=null){ E(`${wn}: в Excel вместо расценки «${w.bad}». Впишите расценку или привяжите работу.`); continue; }
+      if(!WT[w.k]) E(`${wn}: не выбран вид работы.`);
+      if(!(isFinite(w.n)&&w.n>0)) E(`${wn}: количество (×) должно быть больше нуля.`);
+      if(w.link){ const li=linkInfo(w.link);
+        if(!li||li.missing) E(`${wn}: расценка, к которой привязана работа, удалена. Привяжите другую или впишите цифру.`);
+        else if(li.rate==null) E(`${wn}: у привязанной позиции нет сдельной расценки.`); }
+      else if(!(isFinite(w.r)&&w.r>0)) E(`${wn}: расценка должна быть положительным числом.`);
+      else if(w.r>100) W(`${wn}: расценка ${nf(w.r,3)} ₽ — нет ли ошибки в запятой?`);
+    }
+  }
+  if(c.xls!=null){ const t=calcThen(c); if(isFinite(t)&&Math.abs(t-c.xls)>0.0015) W(`В Excel итог ${nf(c.xls,3)}, а сумма работ ${nf(t,3)}: формула в Excel захватила не те ячейки. Программа считает все работы — проверьте и сохраните калькуляцию.`); }
+  if(dupN>1) W(`Калькуляция для этого артикула есть ещё ${dupN-1} ${plural(dupN-1,'раз','раза','раз')}. Какая из них верная?`);
+  return out;
+}
+function calcIssues(){
+  const cnt={}, res=[]; for(const c of S.calcs) if(c.art) cnt[norm(c.art)]=(cnt[norm(c.art)]||0)+1;
+  for(const c of S.calcs) for(const i of checkCalc(c,c.art?cnt[norm(c.art)]:0)) res.push({...i,where:`Калькуляция ${c.art||c.name}`,cid:c.id});
+  return res;
+}
+
+function renderCalc(m){
+  const st=ui.calc||(ui.calc={q:'',f:'all',lim:150});
+  const ic={}; for(const i of ISS) if(i.cid) (ic[i.cid]=ic[i.cid]||[]).push(i);
+  const all=S.calcs.map(c=>{ const now=calcNow(c), then=calcThen(c), {n,k}=calcLinks(c); return {c,now,then,ch:isFinite(now)&&then>0?(now/then-1)*100:null,n,k,l:lvl(ic[c.id]||[])}; });
+  const q=norm(st.q);
+  const rows=all.filter(r=>(!q||norm(r.c.art+' '+r.c.name+' '+r.c.lines.map(l=>l.comp).join(' ')).includes(q))
+    && (st.f==='all'||st.f==='manual'&&r.k<r.n||st.f==='linked'&&r.n&&r.k===r.n||st.f==='iss'&&r.l||st.f==='auto'&&r.c.src==='auto'||st.f==='xls'&&r.c.src!=='auto'))
+    .sort((a,b)=>a.c.art.localeCompare(b.c.art,'ru',{numeric:true}));
+  const gr=all.filter(r=>r.ch!=null).map(r=>r.ch).sort((a,b)=>a-b), med=gr.length?gr[gr.length>>1]:null;
+  const full=all.filter(r=>r.n&&r.k===r.n).length, works=all.reduce((a,r)=>a+r.n,0), linked=all.reduce((a,r)=>a+r.k,0);
+  const s1=SH1.src==='live'?`Расценки цеха 1 берутся из программы цеха 1 в этом браузере${SH1.when?' (изменения от '+new Date(SH1.when).toLocaleDateString('ru-RU')+')':''}.`
+    :'Расценки цеха 1 — снимок на 01.06.2026. Чтобы они менялись вместе с программой цеха 1, откройте её в этом же браузере, затем обновите эту страницу.';
+  m.innerHTML=`<div class="card"><div class="row"><h3 style="margin:0;flex:1">Калькуляции: из каких работ складывается изделие</h3>
+      <button class="btn pri no-print" onclick="dlgCalc(null)">+ Калькуляция</button></div>
+    <div class="muted" style="margin:6px 0 14px">Работа, <span class="pill" style="background:var(--accent-soft);border-color:#c6d4f3">привязанная</span> к расценке, пересчитывается сама при любом повышении в цехе 2 или цехе 1. <span class="pill">Ручная</span> цифра остаётся такой, как записана, — её надо привязать или обновить. ${esc(s1)}</div>
+    <div class="stats"><div class="card stat"><span>Калькуляций</span><b>${all.length}</b></div>
+      <div class="card stat"><span>Работ привязано к расценкам</span><b>${linked} из ${works}</b></div>
+      <div class="card stat"><span>Полностью привязаны</span><b>${full}</b></div>
+      <div class="card stat"><span>Медиана роста с даты калькуляции</span><b class="${pcls(med)}">${pct(med)}</b></div></div>
+    <div class="toolbar no-print" style="margin:0"><input type="text" id="cq" placeholder="Артикул, название или составная часть" value="${esc(st.q)}">
+      <select id="cf" style="width:auto">${[['all','все'],['xls','из Excel'],['auto','собраны из расценок цеха 2'],['manual','есть ручные цифры'],['linked','всё привязано'],['iss','с замечаниями']].map(([v,t])=>`<option value="${v}" ${st.f===v?'selected':''}>${t}</option>`).join('')}</select>
+      <span class="muted">${rows.length} из ${all.length}</span></div></div>
+  <div class="card" style="padding:0;margin-top:16px"><div class="scroll-x"><table><thead><tr><th>Артикул</th><th>Наименование</th><th class="n">Дата</th><th class="n">По расценкам в калькуляции</th><th class="n">Сейчас</th><th class="n">Рост</th><th class="n">С премией</th><th class="n">С налогами и ИТР</th><th class="n">Привязано</th></tr></thead><tbody>
+  ${rows.slice(0,st.lim).map(r=>{ const f=calcFull(r.now,r.c); return `<tr class="click ${r.l?'r-'+r.l:''}" onclick="dlgCalc('${r.c.id}')" title="${esc((ic[r.c.id]||[]).map(i=>i.text).join('\n'))}">
+    <td style="white-space:nowrap">${esc(r.c.art)||'<span class="muted">—</span>'}</td><td>${esc(r.c.name)}${r.c.src==='auto'?' <span class="pill">из расценок</span>':''}</td><td class="n">${fd(r.c.date)}</td>
+    <td class="n">${nf(r.then,3)}</td><td class="n"><b>${nf(r.now,3)}</b></td><td class="n ${pcls(r.ch)}">${pct(r.ch)}</td><td class="n">${nf(f.bonus,3)}</td><td class="n">${nf(f.full,2)}</td>
+    <td class="n ${r.k<r.n?'muted':''}">${r.k}/${r.n}</td></tr>`; }).join('')}</tbody></table>
+  ${rows.length>st.lim?`<div class="empty"><button class="btn" onclick="ui.calc.lim+=300;render()">Показать ещё ${Math.min(300,rows.length-st.lim)}</button></div>`:''}
+  ${rows.length?'':'<div class="empty">Ничего не найдено.</div>'}</div></div>`;
+  const cq=document.getElementById('cq'); cq.oninput=()=>{ st.q=cq.value; st.lim=150; renderCalc(m); const e=document.getElementById('cq'); e.focus(); e.setSelectionRange(e.value.length,e.value.length); };
+  document.getElementById('cf').onchange=e=>{ st.f=e.target.value; st.lim=150; renderCalc(m); };
+}
+
+// какой вид работ у расценки — для работы, добавленной из списка расценок
+function guessK(shop,o,g){
+  const t=norm(o.name+' '+(o.oper||'')+' '+(o.variant||''));
+  if(shop==='2'){ if(g.id==='g6'||g.id==='g1') return 'F'; if(g.id==='g4') return 'Z';
+    if(/облой|облоя/.test(t)) return 'G'; if(/резк|разрез/.test(t)) return 'I'; if(/пересч/.test(t)) return 'U'; if(/пробив|прокол/.test(t)) return 'J'; if(/упаков/.test(t)) return 'Z'; return 'F'; }
+  if(/шелк|шёлк/.test(norm(g.name))) return 'T'; if(g.id==='g7') return /тиснен/.test(t)?'S':'N'; if(g.id==='g6') return 'S';
+  if(g.id==='g10') return /склей|коробоч|чехл/.test(t)?'W':'V'; if(g.id==='g9') return 'R'; if(g.id==='g5') return 'X'; if(g.id==='g8') return 'J'; return 'M';
+}
+function candidates(q){
+  const words=norm(q).split(' ').filter(Boolean); if(!words.length) return [];
+  const out=[], hit=s=>words.every(w=>s.includes(w));
+  for(const o of S.ops){ const g=G(o.groupId); if(g.kind==='hourly') continue; if(hit(norm(o.art+' '+opText(o)+' '+g.name))) out.push({shop:'2',o,g,rate:rateOf(o,g)}); if(out.length>60) break; }
+  for(const o of SH1.st.ops){ const g=SH1.G[o.groupId]; if(!g||g.kind==='hourly') continue; if(hit(norm(o.art+' '+opText(o)+' '+g.name))) out.push({shop:'1',o,g,rate:sh1Rate(o)}); if(out.length>120) break; }
+  return out;
+}
+
+function dlgCalc(id){
+  const src=id? S.calcs.find(c=>c.id===id) : null;
+  const d=src? clone(src) : {id:'k'+Date.now().toString(36),art:'',name:'',date:today(),itr:2.7,src:'user',lines:[{comp:'',qty:1,works:[]}]};
+  let pick=null; // {li, wi} — привязка работы; {li, wi:null} — добавление работ к части
+  const draw=()=>{
+    const pickHtml=pick?`<div class="card" style="background:var(--soft);margin-bottom:12px"><div class="row"><b style="flex:1">${pick.wi==null?'Добавить работы к части «'+esc(d.lines[pick.li].comp)+'»':'Привязать работу к расценке'}</b><button class="btn sm" id="pk_x">Закрыть</button></div>
+      <input type="text" id="pk_q" placeholder="Артикул или слова из названия, например «1039 облой»" value="${esc(pick.q)}" style="margin:8px 0">
+      <div id="pk_l" style="max-height:260px;overflow:auto"></div></div>`:'';
+    const lines=d.lines.map((l,li)=>`<div class="card" style="margin-bottom:10px;padding:12px">
+      <div class="row" style="flex-wrap:nowrap"><input type="text" data-l="${li}" data-f="comp" value="${esc(l.comp)}" placeholder="Составная часть (артикул, «файл 1007», «коробка»…)">
+        <label class="row" style="gap:4px;flex:none">× <input type="text" data-l="${li}" data-f="qty" value="${esc(String(l.qty??'').replace('.',','))}" style="width:70px" inputmode="decimal"> шт</label>
+        <button class="btn sm" data-act="add" data-l="${li}" title="Добавить работу из расценок">+ работа</button><button class="btn sm danger" data-act="dell" data-l="${li}" title="Удалить часть">✕</button></div>
+      ${l.note?`<div class="hint">${esc(l.note)}</div>`:''}
+      ${l.works.length?`<table style="margin-top:8px"><thead><tr><th>Вид работы</th><th class="n">Расценка, ₽</th><th class="n">×</th><th class="n">Сейчас</th><th class="n">В калькуляции</th><th>Откуда цена</th><th></th></tr></thead><tbody>${l.works.map((w,wi)=>{ const li2=w.link&&linkInfo(w.link);
+        return `<tr><td><select data-l="${li}" data-w="${wi}" data-f="k" style="min-width:160px">${Object.entries(WT).map(([k,t])=>`<option value="${k}" ${k===w.k?'selected':''}>${esc(t)}</option>`).join('')}</select></td>
+        <td class="n">${w.link?`<b>${li2&&!li2.missing&&li2.rate!=null?nf(li2.rate,3):'—'}</b>`:`<input type="text" data-l="${li}" data-w="${wi}" data-f="r" value="${esc(w.bad!=null?w.bad:String(w.r??'').replace('.',','))}" style="width:80px;text-align:right" inputmode="decimal">`}</td>
+        <td class="n"><input type="text" data-l="${li}" data-w="${wi}" data-f="n" value="${esc(String(w.n??1).replace('.',','))}" style="width:56px;text-align:right" inputmode="decimal" title="${esc(WTN[w.k]||'множитель')}"></td>
+        <td class="n" data-now="${li}:${wi}"></td><td class="n muted">${w.v!=null?nf(w.v,3):'—'}</td>
+        <td style="font-size:12px;max-width:260px">${w.link?(li2&&!li2.missing?`<span class="pill" style="background:var(--accent-soft);border-color:#c6d4f3">${esc(li2.label)}</span> ${esc(li2.text)}`:'<span class="down">расценка удалена</span>'):'<span class="pill">ручная</span>'}
+          <div class="row" style="gap:4px;margin-top:3px"><button class="btn sm" data-act="link" data-l="${li}" data-w="${wi}">${w.link?'Другая':'Привязать'}</button>${w.link?`<button class="btn sm" data-act="unlink" data-l="${li}" data-w="${wi}">Отвязать</button>`:''}</div></td>
+        <td><button class="btn sm danger" data-act="delw" data-l="${li}" data-w="${wi}">✕</button></td></tr>`; }).join('')}</tbody></table>`:'<div class="hint">Работ нет — нажмите «+ работа».</div>'}</div>`).join('');
+    openDlg(`<div class="dlg-h"><h3>${src?'Калькуляция '+esc(d.art||d.name):'Новая калькуляция'}${d.src==='auto'?' <span class="pill">собрана из расценок цеха 2</span>':''}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+    <div class="dlg-b" id="cfm">${pickHtml}
+      <div class="grid3"><label class="f"><span>Артикул</span><input type="text" id="c_art" value="${esc(d.art)}"></label>
+      <label class="f"><span>Дата калькуляции</span><input type="date" id="c_date" value="${esc(d.date)}"></label>
+      <label class="f"><span>Коэффициент ИТР к сделке</span><input type="text" id="c_itr" value="${esc(String(d.itr).replace('.',','))}" inputmode="decimal"></label></div>
+      <label class="f"><span>Наименование</span><input type="text" id="c_name" value="${esc(d.name)}"></label>
+      <label class="f"><span>Комментарий</span><input type="text" id="c_note" value="${esc(d.note||'')}"></label>
+      <h3 style="margin-top:6px">Составные части и работы</h3>${lines}
+      <button class="btn sm" data-act="addl">+ составная часть</button>
+      <div id="c_tot" style="margin-top:14px"></div><div id="c_msg"></div></div>
+    <div class="dlg-f">${src?`<button class="btn danger" style="margin-right:auto" onclick="delCalc('${src.id}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="c_save">Сохранить</button></div>`);
+    dlg.style.width='min(1100px,96vw)'; c_save.onclick=doSave;
+    if(pick){ const pq=document.getElementById('pk_q'); pq.oninput=()=>{ pick.q=pq.value; drawPick(); }; document.getElementById('pk_x').onclick=()=>{ pick=null; draw(); }; drawPick(); pq.focus(); }
+    recheck();
+  };
+  const drawPick=()=>{
+    const list=candidates(pick.q);
+    document.getElementById('pk_l').innerHTML=list.length?`<table><tbody>${list.map((x,i)=>`<tr class="click" data-pick="${i}"><td style="white-space:nowrap">${x.shop==='2'?'цех 2':'цех 1'} · №${x.g.no}</td><td>${esc(opText(x.o))}<div class="hint">${esc(x.g.name)}</div></td><td class="n"><b>${x.rate!=null?nf(x.rate,3):'—'}</b></td></tr>`).join('')}</tbody></table>`:`<div class="hint">${pick.q.trim()?'Ничего не найдено.':'Начните вводить артикул.'}</div>`;
+    document.querySelectorAll('#pk_l [data-pick]').forEach(tr=>tr.onclick=()=>{ const x=list[+tr.dataset.pick], l=d.lines[pick.li];
+      if(pick.wi==null) l.works.push({k:guessK(x.shop,x.o,x.g),r:x.rate,n:1,v:null,link:{shop:x.shop,op:x.o.id}});
+      else { const w=l.works[pick.wi]; w.link={shop:x.shop,op:x.o.id}; delete w.bad; }
+      pick=null; draw(); });
+  };
+  const recheck=()=>{
+    for(const el of document.querySelectorAll('[data-now]')){ const [li,wi]=el.dataset.now.split(':').map(Number), w=d.lines[li].works[wi], v=workNow(w); el.innerHTML=isFinite(v)?nf(v,3):'—'; }
+    const now=calcNow(d), then=calcThen(d), f=calcFull(now,d), ch=isFinite(now)&&then>0?(now/then-1)*100:null;
+    document.getElementById('c_tot').innerHTML=`<div class="chain" style="margin:0"><div>По расценкам в калькуляции (${fd(d.date)})<b>${nf(then,3)} ₽</b></div><div class="arr">→</div>
+      <div class="key">по расценкам сейчас<b>${nf(now,3)} ₽ ${ch!=null?`<small class="${pcls(ch)}">${pct(ch)}</small>`:''}</b></div><div class="arr">→</div>
+      <div>с премией ${S.settings.bonusPct}%<b>${nf(f.bonus,3)} ₽</b></div><div class="arr">→</div>
+      <div>с налогами и ИТР (×${nfa(S.settings.calcTax1??1.3)} ×${nfa(S.settings.calcTax2??1.2)} ×${nfa(d.itr)})<b>${nf(f.full,2)} ₽</b></div></div>`;
+    const cnt=S.calcs.filter(c=>c.id!==d.id&&c.art&&norm(c.art)===norm(d.art)).length+1;
+    let list=checkCalc(d,d.art?cnt:0); const errs=list.filter(i=>i.level==='error'), warns=list.filter(i=>i.level==='warn');
+    if(errs.length) list=errs;
+    const was=(document.getElementById('c_ok')||{}).checked;
+    document.getElementById('c_msg').innerHTML=issuesHtml(list)+(warns.length&&!errs.length?confirmBox('c_ok'):'');
+    if(was&&document.getElementById('c_ok')) c_ok.checked=true;
+    c_save.disabled=errs.length>0||(warns.length>0&&!(document.getElementById('c_ok')||{}).checked);
+  };
+  draw();
+  // один обработчик на весь диалог: поля меняют модель и пересчитывают итог, кнопки перестраивают диалог
+  dlg.oninput=dlg.onchange=e=>{
+    const t=e.target; if(t.id==='pk_q') return;
+    if(t.id==='c_art') d.art=t.value.trim(); else if(t.id==='c_name') d.name=t.value.trim(); else if(t.id==='c_note') d.note=t.value.trim();
+    else if(t.id==='c_date') d.date=t.value; else if(t.id==='c_itr') d.itr=num(t.value);
+    else if(t.dataset.l!=null){ const l=d.lines[+t.dataset.l];
+      if(t.dataset.w==null){ if(t.dataset.f==='comp') l.comp=t.value.trim(); else l.qty=num(t.value); }
+      else { const w=l.works[+t.dataset.w];
+        if(t.dataset.f==='k'){ w.k=t.value; } else if(t.dataset.f==='n') w.n=num(t.value); else { w.r=num(t.value); delete w.bad; }
+        t.className=(t.dataset.f!=='k'&&!(num(t.value)>0))?'bad':''; } }
+    recheck();
+  };
+  dlg.onclick=e=>{
+    const b=e.target.closest('[data-act]'); if(!b) return;
+    const li=+b.dataset.l, wi=b.dataset.w!=null?+b.dataset.w:null, a=b.dataset.act;
+    if(a==='addl') d.lines.push({comp:'',qty:1,works:[]});
+    else if(a==='dell'){ if(d.lines[li].works.length&&!confirm(`Удалить часть «${d.lines[li].comp}» со всеми работами?`)) return; d.lines.splice(li,1); }
+    else if(a==='delw') d.lines[li].works.splice(wi,1);
+    else if(a==='add'){ const m=(d.lines[li].comp||d.art).match(/\d{4}/); pick={li,wi:null,q:m?m[0]:''}; }   // по 4 цифрам видно все работы артикула: сварку, облой, упаковку
+    else if(a==='link'){ const m=(d.lines[li].comp||d.art).match(/\d{4}/); pick={li,wi,q:m?m[0]:''}; }
+    else if(a==='unlink'){ const w=d.lines[li].works[wi], li2=linkInfo(w.link); w.r=li2&&!li2.missing?li2.rate:w.r; delete w.link; }
+    draw();
+  };
+  function doSave(){ recheck(); if(c_save.disabled) return;
+    delete d.xls; // итог Excel с ошибкой проверен и пересохранён — дальше сравнивать не с чем
+    if(src){ Object.keys(src).forEach(k=>delete src[k]); Object.assign(src,d); save(`Калькуляция ${d.art||d.name}: изменена`); }
+    else { S.calcs.push(d); save(`Добавлена калькуляция ${d.art||d.name}`); }
+    closeDlg(); render(); }
+  dlg.addEventListener('close',()=>{ dlg.oninput=dlg.onchange=dlg.onclick=null; dlg.style.width=''; },{once:true});
+}
+function delCalc(id){ const c=S.calcs.find(x=>x.id===id); if(!confirm(`Удалить калькуляцию ${c.art||c.name}?`)) return; S.calcs=S.calcs.filter(x=>x.id!==id); save(`Удалена калькуляция ${c.art||c.name}`); closeDlg(); render(); }
+
+// Программа «Цены на продукцию» берёт отсюда ЗПТ по артикулам: «с налогами и ИТР» по каждой калькуляции.
+// Пишем при каждом сохранении и запуске — тогда цена изделия следует за повышением расценок.
+function publishZpt(){
+  try{ const items={};
+    for(const c of S.calcs||[]){ if(!c.art) continue; const k=String(c.art).replace(/\s+/g,'').toUpperCase(); if(k in items) continue;
+      const v=calcFull(calcNow(c),c).full; if(isFinite(v)) items[k]=Math.round(v*100)/100; }
+    localStorage.setItem('sdelnye-rascenki-ceh2.zpt', JSON.stringify({updated:new Date().toISOString(),items})); }catch(e){}
+}
+
+load(); loadShop1(); publishZpt(); render();
+document.getElementById('saved').textContent= S.meta&&S.meta.changed? 'Сохранено '+new Date(S.meta.changed).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'}) : 'Данные из Excel от 01.06.2026';
+</script>
+</body>
+</html>
