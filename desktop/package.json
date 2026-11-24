@@ -1,7 +1,7 @@
 {
   "name": "ceny-produkcii",
   "productName": "Цены на продукцию",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Цены на продукцию: расценки цехов, калькуляции артикулов, себестоимость и цены",
   "main": "main.js",
   "author": "Kalashmak",

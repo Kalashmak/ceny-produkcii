@@ -61,7 +61,15 @@ function createWindow() {
 ipcMain.on('seeds:get', e => {
   try { e.returnValue = fs.existsSync(SEEDS()) ? fs.readFileSync(SEEDS(), 'utf8') : null; } catch (err) { e.returnValue = null; }
 });
-ipcMain.handle('data:find', () => DATA_CANDIDATES().find(p => fs.existsSync(p)) || null);
+// Заказчик обычно скачивает файл данных в «Загрузки» или кладёт на рабочий стол (бывает «… (1).json»)
+function findInFolder(dir) {
+  try {
+    return fs.readdirSync(dir).filter(f => /^Данные для программы.*\.json$/i.test(f))
+      .map(f => path.join(dir, f)).sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs)[0] || null;
+  } catch (e) { return null; }
+}
+ipcMain.handle('data:find', () => DATA_CANDIDATES().find(p => fs.existsSync(p))
+  || findInFolder(app.getPath('downloads')) || findInFolder(app.getPath('desktop')) || null);
 ipcMain.handle('data:import', async (e, givenPath) => {
   let p = givenPath;
   if (!p) {
