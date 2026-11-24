@@ -112,4 +112,12 @@ LOADER = """<!doctype html>
 """
 html = LOADER % (seeds_js, app, VERSION)
 io.open(DATA + 'Цены на продукцию.html', 'w', encoding='utf8').write(html)
+# настольное приложение: тот же код рядом со стартовой страницей, номер встроенной версии — в её заголовке
+io.open(ROOT + 'desktop/app/app.js', 'w', encoding='utf8', newline='\n').write(app)
+ix = rd(ROOT + 'desktop/app/index.html')
+ix = re.sub(r'<meta name="app-version" content="\d+">', f'<meta name="app-version" content="{VERSION}">', ix)
+io.open(ROOT + 'desktop/app/index.html', 'w', encoding='utf8', newline='\n').write(ix)
+# файл данных для первого запуска приложения — только в папке данных, в git не попадает
+json.dump({'kind': 'ceny-produkcii-backup', 'version': VERSION, 'saved': datetime.datetime.now().isoformat(), 'data': seeds},
+          io.open(DATA + 'Данные для программы.json', 'w', encoding='utf8'), ensure_ascii=False, separators=(',', ':'))
 print('версия', VERSION, 'код', len(app), 'файл', len(html), 'sha', sha[:12])

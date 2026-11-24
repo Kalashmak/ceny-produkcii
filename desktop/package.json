@@ -1,0 +1,48 @@
+{
+  "name": "ceny-produkcii",
+  "productName": "Цены на продукцию",
+  "version": "1.0.0",
+  "description": "Цены на продукцию: расценки цехов, калькуляции артикулов, себестоимость и цены",
+  "main": "main.js",
+  "author": "Kalashmak",
+  "license": "UNLICENSED",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never",
+    "release": "electron-builder --win nsis --publish always"
+  },
+  "dependencies": {
+    "electron-updater": "6.3.9"
+  },
+  "devDependencies": {
+    "electron": "33.2.1",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "ru.kalashmak.ceny-produkcii",
+    "productName": "Цены на продукцию",
+    "copyright": "Kalashmak",
+    "files": ["main.js", "preload.js", "app/**/*", "build/icon.png", "package.json"],
+    "directories": { "output": "dist", "buildResources": "build" },
+    "win": {
+      "target": [{ "target": "nsis", "arch": ["x64"] }],
+      "icon": "build/icon.ico",
+      "artifactName": "Ceny-produkcii-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": "always",
+      "createStartMenuShortcut": true,
+      "shortcutName": "Цены на продукцию",
+      "uninstallDisplayName": "Цены на продукцию",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "language": "1049"
+    },
+    "publish": [{ "provider": "github", "owner": "Kalashmak", "repo": "ceny-produkcii", "releaseType": "release" }]
+  }
+}

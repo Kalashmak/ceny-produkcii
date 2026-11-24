@@ -1,7 +1,7 @@
 'use strict';
 /* Оболочка «Цены на продукцию»: главная, разделы (цены, калькуляции, расценки цехов), общая копия, автообновление.
    Разделы — отдельные страницы во фреймах: у каждого свои данные в хранилище браузера, связь — через него же. */
-const APP_VERSION = 1;
+const APP_VERSION = 2;
 const APP_BUILT = "2026-11-24";
 const DEFAULT_UPDATE_URL = "https://kalashmak.github.io/ceny-produkcii/";
 const THEME = "/* Общая тема всех разделов программы «Цены на продукцию» */\n:root{\n  --bg:#f3f5f9; --panel:#fff; --ink:#152033; --muted:#64708a; --line:#e3e7ef; --soft:#f7f8fb;\n  --accent:#2f5bd8; --accent-soft:#ebf0ff; --ok:#16804a; --ok-soft:#e7f6ee;\n  --warn:#a35a00; --warn-soft:#fff5e6; --err:#c42b33; --err-soft:#fdecec; --radius:14px;\n}\nbody{font:14px/1.5 \"Segoe UI Variable Text\",\"Segoe UI\",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}\n.card{border-color:var(--line);box-shadow:0 1px 2px rgba(20,32,60,.04),0 2px 8px rgba(20,32,60,.03)}\n.btn{border-radius:10px;transition:background .15s,border-color .15s,box-shadow .15s}\n.btn:hover{background:var(--soft)}\n.btn.pri{box-shadow:0 1px 2px rgba(47,91,216,.3)}\n.btn.pri:hover{background:#2850c4}\ninput[type=text],input[type=number],input[type=date],select,textarea{border-radius:9px;border-color:#d4d9e3;transition:border-color .15s,box-shadow .15s}\ninput:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,91,216,.15)}\nth{text-transform:none;letter-spacing:.01em;background:#f6f7fa}\ntbody tr.click:hover td{background:#f4f7ff}\ndialog{border-radius:16px;box-shadow:0 24px 70px rgba(15,25,45,.28)}\ndialog::backdrop{background:rgba(18,26,42,.42);backdrop-filter:blur(2px)}\n.msg{border-radius:10px}\n.stat b{font-size:24px;letter-spacing:-.01em}\n.banner{gap:12px}\n.banner.zpt{background:#fff4e2;color:#7a4300;border-bottom:1px solid #f1d39f}\n.banner .bi{display:inline-grid;place-items:center;min-width:30px;height:24px;border-radius:7px;background:#ffd58a;color:#6b3a00;font-weight:700;font-size:12px}\n.badge.err{animation:none}\n/* внутри общей программы: своя шапка раздела становится второй строкой меню */\nhtml.embed header{height:48px;background:var(--panel);box-shadow:0 1px 0 var(--line)}\nhtml.embed header h1{display:none}\nhtml.embed main{padding-top:18px}\nhtml.embed nav button{font-size:14px}\n";
@@ -124,10 +124,13 @@ addEventListener('message',e=>{ const m=e.data; if(!m||typeof m!=='object') retu
 
 /* ---------- копия всех данных ---------- */
 const KEYS={c1:'sdelnye-rascenki.v1',c2:'sdelnye-rascenki-ceh2.v1',price:'ceny-produkcii.v1'};
+const DESK=window.desktop||null;   // настольное приложение (Electron) или браузер
+function allData(){ const d={kind:'ceny-produkcii-backup',version:APP_VERSION,saved:new Date().toISOString(),data:{}};
+  for(const id in KEYS){ const a=api(id); d.data[id]=a?a.state():JSON.parse(LS.get(KEYS[id])||'null'); } return d; }
 function backupAll(){
-  const d={kind:'ceny-produkcii-backup',version:APP_VERSION,saved:new Date().toISOString(),data:{}};
-  for(const id in KEYS){ const a=api(id); d.data[id]=a?a.state():JSON.parse(LS.get(KEYS[id])||'null'); }
-  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=`цены-на-продукцию-копия-${new Date().toISOString().slice(0,10)}.json`; a.click();
+  const d=allData(), name=`цены-на-продукцию-копия-${new Date().toISOString().slice(0,10)}.json`;
+  if(DESK){ DESK.saveBackupAs(JSON.stringify(d),name).then(r=>{ if(r&&r.ok){ LS.set('ceny.backupAll',String(Date.now())); toastS('Копия сохранена: '+r.file); refresh(); } }); return; }
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(d)],{type:'application/json'})); a.download=name; a.click();
   LS.set('ceny.backupAll',String(Date.now())); refresh();
 }
 function restoreAll(){
@@ -174,10 +177,14 @@ function dlgSettings(){
     <p class="muted">Программа раз в несколько часов смотрит, нет ли там новой версии, и скачивает только код. Оклады, цены и калькуляции остаются в этом браузере.</p>
     <p>Версия ${APP_VERSION} от ${fd(APP_BUILT)}${+LS.get('ceny.code.v')>APP_VERSION?`, работает обновление ${LS.get('ceny.code.v')}`:''}. Статус: ${esc(UPD.status)}.</p>
     <div class="row"><button class="btn" id="u_chk">Проверить сейчас</button>${+LS.get('ceny.code.v')>APP_VERSION?'<button class="btn" id="u_reset">Вернуть версию из файла</button>':''}</div>
-    <hr><b>Данные</b><p class="muted">Копия сохраняет все три раздела одним файлом.</p>
+    ${DESK?`<hr><b>Приложение</b><p class="muted" id="d_info">…</p><div class="row"><button class="btn" id="d_chk">Проверить обновление приложения</button><button class="btn" onclick="DESK.openBackups()">Открыть папку автокопий</button></div>`:''}
+    <hr><b>Данные</b><p class="muted">Копия сохраняет все три раздела одним файлом.${DESK?' Кроме того, приложение само сохраняет копию раз в день, если данные менялись (хранятся 60 последних).':''}</p>
     <div class="row"><button class="btn pri" onclick="backupAll()">Сохранить копию</button><button class="btn" onclick="restoreAll()">Загрузить копию</button></div></div>
   <div class="sd-f"><button class="btn" onclick="sdlg.close()">Закрыть</button><button class="btn pri" id="u_save">Сохранить</button></div>`;
   d.showModal();
+  if(DESK){ const st={idle:'не проверялось',checking:'проверяю…',latest:'установлена последняя версия',downloading:'скачиваю обновление',ready:'обновление загружено, установится при закрытии',error:'ошибка проверки',dev:'режим разработки'};
+    DESK.info().then(i=>{ const s=deskUpd||{}; document.getElementById('d_info').innerHTML=`Версия приложения ${esc(i.version)} · ${esc(st[s.state]||'')}${s.version?' '+esc(s.version):''}${s.error?' ('+esc(s.error)+')':''}.<br>Данные: ${esc(i.userData)}<br>Автокопии: ${esc(i.backups)}`; });
+    document.getElementById('d_chk').onclick=()=>{ DESK.checkUpdate().then(()=>toastS('Проверяю обновление приложения…')).catch(()=>toastS('Проверка доступна в установленной программе')); }; }
   u_chk.onclick=()=>{ LS.set('ceny.updateUrl',u_url.value.trim()); checkUpdate(true); };
   u_save.onclick=()=>{ const v=u_url.value.trim(); if(v&&!/^https:\/\/[^\s]+$/.test(v)){ alert('Адрес должен начинаться с https://'); return; } LS.set('ceny.updateUrl',v); d.close(); toastS('Сохранено'); };
   const r=document.getElementById('u_reset'); if(r) r.onclick=()=>{ if(!confirm('Вернуть версию программы, встроенную в файл?')) return; LS.del('ceny.code'); LS.del('ceny.code.v'); location.reload(); };
@@ -222,6 +229,18 @@ html,body{height:100%}body{margin:0;background:var(--bg);overflow:hidden;display
 .stoast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#101a2e;color:#fff;padding:10px 16px;border-radius:10px;z-index:50;font-size:13px}
 @media (max-width:760px){.top{gap:10px;padding:0 10px}.brand span:last-child{display:none}.sec button span{display:none}.sec button{padding:8px 10px}.tools .tbtn span{display:none}.hhead h1{font-size:21px}}
 `; }
+
+/* ---------- приложение: автокопии и обновление самой программы ---------- */
+let deskUpd=null;
+if(DESK){
+  // раз в час: если данные изменились — копия дня в «Документы\Цены на продукцию\Резервные копии»
+  const autoBackup=()=>{ if(!['price','c1','c2'].every(k=>FR[k].ready)) return; const s=JSON.stringify(allData().data); let h=0; for(let i=0;i<s.length;i+=7) h=(h*31+s.charCodeAt(i))|0;
+    if(String(h)===LS.get('ceny.autoHash')&&LS.get('ceny.autoDay')===new Date().toISOString().slice(0,10)) return;
+    DESK.autoBackup(JSON.stringify({...allData(),auto:true})).then(()=>{ LS.set('ceny.autoHash',String(h)); LS.set('ceny.autoDay',new Date().toISOString().slice(0,10)); LS.set('ceny.backupAll',String(Date.now())); refresh(); }).catch(()=>{}); };
+  setTimeout(autoBackup,20000); setInterval(autoBackup,3600e3); addEventListener('beforeunload',autoBackup);
+  const onUpd=s=>{ deskUpd=s; if(s&&s.state==='ready') notice(`<span class="aic">${ico('up',16)}</span><span><b>Загружена новая версия приложения ${esc(s.version)}.</b> Установится при закрытии программы, данные сохранятся.</span><button class="btn sm pri" onclick="DESK.installUpdate()">Перезапустить сейчас</button>`,'ok'); };
+  DESK.onUpdate(onUpd); DESK.updateState().then(onUpd).catch(()=>{});
+}
 
 show(cur);
 window.__APP_OK=true;

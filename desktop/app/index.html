@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="app-version" content="2">
+<title>Цены на продукцию</title>
+<style>
+body{margin:0;background:#f3f5f9;font:15px/1.5 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;color:#152033}
+#boot{display:grid;place-items:center;height:100vh;color:#64708a}
+.welcome{min-height:100vh;display:grid;place-items:center;background:radial-gradient(1200px 600px at 20% -10%,#dfe8ff 0,transparent 60%),#f3f5f9}
+.wbox{width:min(560px,92vw);background:#fff;border:1px solid #e3e7ef;border-radius:20px;padding:34px 34px 28px;box-shadow:0 24px 60px rgba(20,32,60,.12)}
+.logo{display:grid;place-items:center;width:56px;height:56px;border-radius:16px;background:linear-gradient(135deg,#5b8cff,#2f5bd8);color:#fff;font-size:28px;font-weight:700;box-shadow:0 8px 20px rgba(47,91,216,.35);margin-bottom:18px}
+h1{margin:0 0 6px;font-size:24px;letter-spacing:-.02em}
+p{margin:0 0 14px;color:#4c5870}
+.found{background:#eef6f0;border:1px solid #c6e6cf;border-radius:12px;padding:12px 14px;margin:16px 0;font-size:13px;color:#245c37;word-break:break-all}
+.btns{display:flex;gap:10px;flex-wrap:wrap;margin-top:18px}
+button{font:inherit;border:1px solid #d9dee8;background:#fff;color:#152033;border-radius:11px;padding:10px 16px;cursor:pointer}
+button.pri{background:#2f5bd8;border-color:#2f5bd8;color:#fff;box-shadow:0 2px 6px rgba(47,91,216,.3)}
+button:hover{filter:brightness(.97)}
+.err{color:#c42b33;margin-top:12px;font-size:13px}
+.small{font-size:12px;color:#7a8499;margin-top:18px}
+</style>
+</head>
+<body>
+<div id="boot">Загрузка программы…</div>
+<script>
+/* Стартовая страница приложения.
+   1) Данные берутся из папки приложения; если их нет (первый запуск) — экран загрузки данных.
+   2) Код программы — встроенный (app.js рядом) или более новый, скачанный с GitHub Pages и сохранённый в программе.
+      Если скачанный код не запустился — откат на встроенный. */
+(function(){
+  var raw=null; try{ raw=window.desktop.seeds(); }catch(e){}
+  if(!raw){ welcome(); return; }
+  try{ window.__SEEDS=JSON.parse(raw); }catch(e){ welcome('Сохранённые данные повреждены. Загрузите файл данных или копию ещё раз.'); return; }
+  var BUNDLED=+(document.querySelector('meta[name=app-version]')||{}).content||0, code=null, v=0;
+  try{ v=+localStorage.getItem('ceny.code.v')||0; if(v>BUNDLED&&localStorage.getItem('ceny.bad')!==String(v)) code=localStorage.getItem('ceny.code'); }catch(e){}
+  var fromCache=!!code;
+  window.addEventListener('error',function(){ if(fromCache&&!window.__APP_OK){ try{ localStorage.setItem('ceny.bad',String(v)); }catch(e){} location.reload(); } });
+  var s=document.createElement('script');
+  if(code) s.textContent=code; else s.src='app.js';
+  document.body.appendChild(s);
+})();
+
+function welcome(err){
+  document.body.innerHTML='<div class="welcome"><div class="wbox"><div class="logo">₽</div><h1>Цены на продукцию</h1>'+
+    '<p>Для начала программе нужны ваши данные: расценки двух цехов, калькуляции и цены. В установщике их нет — они хранятся только на вашем компьютере.</p>'+
+    '<div id="found"></div><div class="btns" id="btns"><button class="pri" id="pick">Выбрать файл данных…</button></div>'+
+    '<div class="err" id="err">'+(err||'')+'</div>'+
+    '<div class="small">Подходит файл «Данные для программы.json» или копия, сохранённая кнопкой «Копия» в программе (в том числе в браузерной версии).</div></div></div>';
+  var go=function(p){ document.getElementById('err').textContent=''; window.desktop.importData(p).then(function(r){
+    if(r.ok) location.reload(); else if(!r.canceled) document.getElementById('err').textContent=r.error; }); };
+  document.getElementById('pick').onclick=function(){ go(null); };
+  window.desktop.findData().then(function(p){ if(!p) return;
+    document.getElementById('found').innerHTML='<div class="found">На этом компьютере найден файл данных:<br><b></b></div>';
+    document.querySelector('#found b').textContent=p;
+    var b=document.createElement('button'); b.className='pri'; b.textContent='Загрузить найденные данные'; b.onclick=function(){ go(p); };
+    var btns=document.getElementById('btns'); document.getElementById('pick').className=''; btns.insertBefore(b,btns.firstChild); });
+}
+</script>
+</body>
+</html>
