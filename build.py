@@ -43,12 +43,12 @@ metaBaseline();
 window.__api={
   key:KEY, state:()=>S, go:t=>{ try{ go(t); }catch(e){} },
   inwork:k=>metaInWork(k), log:()=>S.log.slice(0,20),
-  openZpt(){ go('prod'); if(ZPT2) dlgZpt2(); },
+  openZpt(){ go('prod'); dlgReview(); },
   filter(f){ ui.f=f; ui.lim=150; go('prod'); },
   stats(){ const e=ISS.filter(i=>i.level==='error'); let loss=0,low=0;
     for(const p of S.prods){ const m=margin(p); if(m==null) continue; if(m<0) loss++; else if(m<S.settings.minMargin) low++; }
     return {prods:S.prods.length,mats:Object.keys(S.mats).length,err:e.length,warn:ISS.length-e.length,cny:S.settings.cny,minMargin:S.settings.minMargin,
-      zpt:ZPT2?zptSummary():null,loss,low,backup:S.meta&&S.meta.backup}; }
+      zpt:reviewSummary(),loss,low,backup:S.meta&&S.meta.backup}; }
 };
 // калькуляции цеха 2 пересчитаны — свежая ЗПТ и предупреждение «пересмотрите цены»
 addEventListener('storage',e=>{ if(e.key==='sdelnye-rascenki-ceh2.zpt'){ loadZpt2(); render(); } });

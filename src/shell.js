@@ -86,7 +86,7 @@ function homeRender(){
   const ps=api('price')?.stats(), c1=api('c1')?.stats(), c2=api('c2')?.stats();
   if(!ps||!c1||!c2){ h.innerHTML=`<div class="wrap"><div class="loading">Открываю данные…</div></div>`; return; }
   const att=[];
-  if(ps.zpt&&ps.zpt.n) att.push({k:'warn',icon:'up',t:`Зарплата изменилась — возможно, нужно пересмотреть цены`,d:`ЗПТ в калькуляциях ${ps.zpt.up?'выросла':'изменилась'} у ${ps.zpt.n} ${plural(ps.zpt.n,'изделия','изделий','изделий')}${ps.zpt.med!=null?`, в среднем на ${nf(ps.zpt.med,1)}%`:''}${ps.zpt.low?`. У ${ps.zpt.low} наценка упадёт ниже порога`:''}.`,b:'Посмотреть',a:"show('price');api('price').openZpt()"});
+  if(ps.zpt&&ps.zpt.n) att.push({k:'warn',icon:'up',t:`Пересмотрите цены: ${ps.zpt.n} ${plural(ps.zpt.n,'изделие','изделия','изделий')}`,d:`Материал или калькуляция изменились больше порога из Параметров${ps.zpt.med!=null?`; себестоимость изменится в среднем на ${nf(ps.zpt.med,1)}%`:''}${ps.zpt.low?`. У ${ps.zpt.low} наценка упадёт ниже порога`:''}. Цены в изделиях не менялись.`,b:'Посмотреть',a:"show('price');api('price').openZpt()"});
   if(ps.loss) att.push({k:'err',icon:'alert',t:`Цена со скидкой ниже себестоимости: ${ps.loss} ${plural(ps.loss,'изделие','изделия','изделий')}`,d:'Каждое такое изделие продаётся в убыток.',b:'Показать',a:"show('price');api('price').filter('err')"});
   if(ps.low) att.push({k:'warn',icon:'alert',t:`Наценка ниже ${ps.minMargin}%: ${ps.low} ${plural(ps.low,'изделие','изделия','изделий')}`,d:'Цена со скидкой едва покрывает себестоимость.',b:'Показать',a:"show('price');api('price').filter('low')"});
   const rateErr=c1.err+c2.rateErr; if(rateErr) att.push({k:'err',icon:'alert',t:`Ошибки в расценках: ${rateErr}`,d:'Расценки с ошибками в калькуляции попадают неверно.',b:'Проверка',a:c1.err?"show('c1','chk')":"show('c2','chk')"});
@@ -101,7 +101,7 @@ function homeRender(){
       <button class="btn pri" onclick="show('price','sim')">${ico('up',16)} Что будет при новом курсе или зарплате</button></div>
     <h2>Что требует внимания</h2>
     ${att.length?`<div class="att">${att.map(x=>`<div class="ai ${x.k}"><span class="aic">${ico(x.icon,18)}</span><div><b>${esc(x.t)}</b><p>${esc(x.d)}</p></div><button class="btn sm ${x.k==='ok'||x.k==='warn'?'pri':''}" onclick="${x.a}">${x.b}</button></div>`).join('')}</div>`
-      :`<div class="att"><div class="ai ok"><span class="aic">${ico('ok',18)}</span><div><b>Всё в порядке</b><p>Ошибок нет, ЗПТ в ценах совпадает с калькуляциями.</p></div></div></div>`}
+      :`<div class="att"><div class="ai ok"><span class="aic">${ico('ok',18)}</span><div><b>Всё в порядке</b><p>Ошибок нет, цены материалов и калькуляций в пределах порога.</p></div></div></div>`}
     <h2>Разделы</h2>
     <div class="cards">
       ${card('price','tag','Цены на продукцию',[`${ps.prods} изделий, ${ps.mats} материалов`,`ошибок ${ps.err}, предупреждений ${ps.warn}`],'Открыть')}
@@ -110,7 +110,7 @@ function homeRender(){
       ${card('c2','factory','Расценки цех 2',[`${c2.groups} участков, ${c2.ops} позиций`,c2.last?`последнее изменение ${fd(c2.last.date)}`:'изменений не было'],'Открыть')}
     </div>
     ${recentHtml()}
-    <div class="how"><b>Как всё связано.</b> Повышение окладов в расценках цехов → калькуляции артикулов пересчитываются сами → ЗПТ в ценах на продукцию: программа предупредит, что цены, возможно, пора пересмотреть. Курс юаня меняет цены плёнок ПВХ и через них себестоимость.</div>
+    <div class="how"><b>Как всё связано.</b> Повышение окладов в расценках цехов → калькуляции артикулов пересчитываются сами. Цены материалов и ЗПТ в изделиях зафиксированы: если материал или калькуляция изменились больше порога из Параметров, программа попросит пересмотреть цену изделия.</div>
     <div class="foot">Версия ${APP_VERSION} от ${fd(APP_BUILT)} · ${esc(UPD.status)} · данные хранятся в этом браузере${LS.get('ceny.backupAll')?', копия от '+new Date(+LS.get('ceny.backupAll')).toLocaleDateString('ru-RU'):''}</div></div>`;
 }
 let rt=null; function refresh(){ clearTimeout(rt); rt=setTimeout(()=>{ navRender(); homeRender(); },120); }
@@ -123,7 +123,7 @@ function notice(html,kind){ const n=document.getElementById('notice'); n.innerHT
 addEventListener('message',e=>{ const m=e.data; if(!m||typeof m!=='object') return;
   if(m.t==='rates'){ // повышение или отмена в расценках цеха
     setTimeout(()=>{ const z=api('price')?.stats().zpt; refresh();
-      notice(`<span class="aic">${ico('up',16)}</span><span><b>${esc(m.shop)}: ${esc(m.title)}.</b> Калькуляции пересчитаны${z&&z.n?` — ЗПТ изменилась у ${z.n} ${plural(z.n,'изделия','изделий','изделий')}, возможно, нужно пересмотреть цены`:''}.</span>${z&&z.n?`<button class="btn sm pri" onclick="show('price');api('price').openZpt();this.closest('.nt').remove()">Проверить цены</button>`:''}`,'warn'); },600); }
+      notice(`<span class="aic">${ico('up',16)}</span><span><b>${esc(m.shop)}: ${esc(m.title)}.</b> Калькуляции пересчитаны${z&&z.n?` — у ${z.n} ${plural(z.n,'изделия','изделий','изделий')} изменение больше порога, пересмотрите цены`:', цены в изделиях не менялись'}.</span>${z&&z.n?`<button class="btn sm pri" onclick="show('price');api('price').openZpt();this.closest('.nt').remove()">Проверить цены</button>`:''}`,'warn'); },600); }
   if(m.t==='changed') refresh(); });
 
 /* ---------- копия всех данных ---------- */
