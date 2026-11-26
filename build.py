@@ -11,6 +11,7 @@ NOTES = sys.argv[2] if len(sys.argv) > 2 else ''
 UPDATE_URL = 'https://kalashmak.github.io/ceny-produkcii/'
 rd = lambda p: io.open(p, encoding='utf8').read()
 theme = rd(SRC + 'theme.css')
+common = rd(SRC + 'common.js')
 
 def must(a, o, n, cnt=1):
     assert a.count(o) == cnt, (o[:80], a.count(o)); return a.replace(o, n)
@@ -18,8 +19,13 @@ def must(a, o, n, cnt=1):
 NOTIFY = "try{ if(parent!==window) parent.postMessage({t:'rates',shop:%r,title:%s},'*'); }catch(e){}"
 API_RATES = """<script>
 // Связь раздела с общей программой: цифры для главной и переход по вкладкам
+// какие позиции раздела отслеживаются: кто менял, статус «В работе», комментарии
+function metaCollections(){ return [['groups',S.groups.map(g=>[g.id,g])],['ops',S.ops.map(o=>[o.id,o])],['calcs',(S.calcs||[]).map(c=>[c.id,c])]]; }
+function metaLabel(n,o){ return n==='groups'?`участок №${o.no} ${o.name}`:n==='calcs'?`калькуляция ${o.art||o.name}`:`${o.art?o.art+' · ':''}${o.name}${o.variant&&o.variant!=='за 1 шт'?' · '+o.variant:''}`; }
+metaBaseline();
 window.__api={
   key:KEY, state:()=>S, go:t=>{ try{ go(t); }catch(e){} },
+  inwork:k=>metaInWork(k), log:()=>S.log.slice(0,20),
   stats(){ const e=ISS.filter(i=>i.level==='error'), ev=S.events.filter(x=>x.kind!=='import').at(-1);
     const r={groups:S.groups.length,ops:S.ops.length,err:e.length,warn:ISS.length-e.length,last:ev?{date:ev.date,title:ev.title}:null,backup:S.meta&&S.meta.backup};
     if(S.calcs){ const ce=e.filter(i=>i.cid).length; let n=0,k=0; for(const c of S.calcs) for(const l of c.lines) for(const w of l.works){ n++; if(w.link) k++; }
@@ -31,8 +37,12 @@ window.__api={
 C2_LISTEN = """// цех 1 поменял расценки — калькуляции, где есть его работы, пересчитываются и уходят в цены
 addEventListener('storage',e=>{ if(e.key==='sdelnye-rascenki.v1'){ loadShop1(); publishZpt(); render(); } });"""
 API_PRICE = """<script>
+function metaCollections(){ return [['prods',S.prods.map(p=>[p.id,p])],['mats',Object.entries(S.mats)]]; }
+function metaLabel(n,o){ return n==='prods'?`артикул ${o.art}`:`материал «${o.name}»`; }
+metaBaseline();
 window.__api={
   key:KEY, state:()=>S, go:t=>{ try{ go(t); }catch(e){} },
+  inwork:k=>metaInWork(k), log:()=>S.log.slice(0,20),
   openZpt(){ go('prod'); if(ZPT2) dlgZpt2(); },
   filter(f){ ui.f=f; ui.lim=150; go('prod'); },
   stats(){ const e=ISS.filter(i=>i.level==='error'); let loss=0,low=0;
@@ -45,7 +55,7 @@ addEventListener('storage',e=>{ if(e.key==='sdelnye-rascenki-ceh2.zpt'){ loadZpt
 </script>"""
 
 def embed(html, api):
-    head = "<script>if(window.parent!==window)document.documentElement.classList.add('embed')</script><style>" + theme + "</style></head>"
+    head = "<script>if(window.parent!==window)document.documentElement.classList.add('embed')</script><style>" + theme + "</style><script>" + common + "</script></head>"
     html = must(html, '</head>', head)
     return must(html, '</body>', api + '</body>')
 
@@ -59,8 +69,14 @@ tpl = {
     'c2': rates(rd(SRC + 'tpl_c2.html'), 'Цех 2', C2_LISTEN),
     'price': embed(rd(SRC + 'tpl_price.html'), API_PRICE),
 }
+import subprocess, tempfile
+# каждый скрипт каждого раздела — через node --check: ошибка синтаксиса роняет раздел целиком, ловим её до выпуска
 for k, h in tpl.items():
     assert h.count('/*__SEED__*/null') == 1, k
+    for i, s in enumerate(re.findall(r'<script>(.*?)</script>', h.replace('/*__SEED__*/null', 'null').replace('/*__SHOP1__*/null', 'null'), re.S)):
+        with tempfile.NamedTemporaryFile('w', suffix='.js', delete=False, encoding='utf8') as t: t.write(s)
+        r = subprocess.run(['node', '--check', t.name], capture_output=True, text=True, encoding='utf8'); os.unlink(t.name)
+        assert r.returncode == 0, f'{k}, скрипт {i}: {r.stderr[-300:]}'
 built = datetime.date.today().isoformat()
 shell = rd(SRC + 'shell.js')
 shell = must(shell, '/*__VERSION__*/0', str(VERSION))

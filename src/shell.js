@@ -25,6 +25,8 @@ const ICON = {
   alert:'<path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18h0"/>',
   up:'<path d="M12 19V5M5 12l7-7 7 7"/>',
   ok:'<path d="M5 12l5 5L20 7"/>',
+  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+  work:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
 };
 const ico=(n,s=18)=>`<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[n]}</svg>`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -39,13 +41,13 @@ document.head.insertAdjacentHTML('beforeend',`<style>${THEME}${SHELL_CSS()}</sty
 document.body.innerHTML=`
 <div class="top"><div class="brand"><span class="logo">₽</span><span><b>Цены на продукцию</b><small>цех 1 · цех 2 · калькуляции</small></span></div>
   <nav class="sec" id="sec"></nav>
-  <div class="tools"><button class="tbtn" id="t_upd" title="Обновления">${ico('up',16)}<span id="t_updt">v${APP_VERSION}</span></button>
+  <div class="tools"><button class="tbtn" id="t_user" title="Пользователь">${ico('user',16)}<span id="t_username">вход…</span></button><button class="tbtn" id="t_upd" title="Обновления">${ico('up',16)}<span id="t_updt">v${APP_VERSION}</span></button>
   <button class="tbtn" onclick="backupAll()" title="Сохранить копию всех данных">${ico('save',16)}<span>Копия</span></button>
   <button class="tbtn icon" onclick="dlgSettings()" title="Настройки программы">${ico('gear',16)}</button></div></div>
 <div id="notice"></div>
 <section id="home" class="home"></section>
 <div id="frames"></div>
-<dialog id="sdlg"></dialog>`;
+<dialog id="sdlg"></dialog><div id="login" hidden></div>`;
 document.getElementById('boot')?.remove();
 
 const FR={};
@@ -89,8 +91,9 @@ function homeRender(){
   if(ps.low) att.push({k:'warn',icon:'alert',t:`Наценка ниже ${ps.minMargin}%: ${ps.low} ${plural(ps.low,'изделие','изделия','изделий')}`,d:'Цена со скидкой едва покрывает себестоимость.',b:'Показать',a:"show('price');api('price').filter('low')"});
   const rateErr=c1.err+c2.rateErr; if(rateErr) att.push({k:'err',icon:'alert',t:`Ошибки в расценках: ${rateErr}`,d:'Расценки с ошибками в калькуляции попадают неверно.',b:'Проверка',a:c1.err?"show('c1','chk')":"show('c2','chk')"});
   if(c2.calcErr) att.push({k:'err',icon:'alert',t:`Ошибки в калькуляциях: ${c2.calcErr}`,d:'Например, «?» вместо расценки или пустое количество.',b:'Проверка',a:"show('c2','chk')"});
+  const work=inWorkAll(); if(work.length) att.unshift({k:'work',icon:'work',t:`В работе ${work.length} ${plural(work.length,'позиция','позиции','позиций')} — ждут подтверждения`,d:work.slice(0,3).map(w=>w.label).join(' · ')+(work.length>3?' …':''),b:'Показать',a:'dlgWork()'});
   const lb=[ps.backup,c1.backup,c2.backup].filter(Boolean).sort()[0];
-  if(!LS.get('ceny.backupAll')) att.push({k:'info',icon:'save',t:'Копия данных ни разу не сохранялась',d:'Данные хранятся только в этом браузере. Копия переносит их на другой компьютер и спасает при очистке браузера.',b:'Сохранить копию',a:'backupAll()'});
+  if(!LS.get('ceny.backupAll')) att.push({k:'info',icon:'save',t:'Копия данных ни разу не сохранялась',d:DESK?'Приложение само сохраняет копию раз в день в «Документы». Отдельная копия переносит данные на другой компьютер.':'Данные хранятся только в этом браузере. Копия переносит их на другой компьютер и спасает при очистке браузера.',b:'Сохранить копию',a:'backupAll()'});
   if(UPD.ready) att.unshift({k:'ok',icon:'up',t:`Готова новая версия программы: ${UPD.ready.version}`,d:UPD.ready.notes||'Ваши данные не меняются.',b:'Перезапустить',a:'location.reload()'});
   const card=(id,icon,title,lines,btn)=>`<button class="hcard" onclick="show('${id}')"><span class="hic">${ico(icon,22)}</span><b>${title}</b>${lines.map(l=>`<span class="hl">${l}</span>`).join('')}<span class="go">${btn} →</span></button>`;
   h.innerHTML=`<div class="wrap">
@@ -106,6 +109,7 @@ function homeRender(){
       ${card('c1','factory','Расценки цех 1',[`${c1.groups} участков, ${c1.ops} позиций`,c1.last?`последнее изменение ${fd(c1.last.date)}`:'изменений не было'],'Открыть')}
       ${card('c2','factory','Расценки цех 2',[`${c2.groups} участков, ${c2.ops} позиций`,c2.last?`последнее изменение ${fd(c2.last.date)}`:'изменений не было'],'Открыть')}
     </div>
+    ${recentHtml()}
     <div class="how"><b>Как всё связано.</b> Повышение окладов в расценках цехов → калькуляции артикулов пересчитываются сами → ЗПТ в ценах на продукцию: программа предупредит, что цены, возможно, пора пересмотреть. Курс юаня меняет цены плёнок ПВХ и через них себестоимость.</div>
     <div class="foot">Версия ${APP_VERSION} от ${fd(APP_BUILT)} · ${esc(UPD.status)} · данные хранятся в этом браузере${LS.get('ceny.backupAll')?', копия от '+new Date(+LS.get('ceny.backupAll')).toLocaleDateString('ru-RU'):''}</div></div>`;
 }
@@ -125,7 +129,7 @@ addEventListener('message',e=>{ const m=e.data; if(!m||typeof m!=='object') retu
 /* ---------- копия всех данных ---------- */
 const KEYS={c1:'sdelnye-rascenki.v1',c2:'sdelnye-rascenki-ceh2.v1',price:'ceny-produkcii.v1'};
 const DESK=window.desktop||null;   // настольное приложение (Electron) или браузер
-function allData(){ const d={kind:'ceny-produkcii-backup',version:APP_VERSION,saved:new Date().toISOString(),data:{}};
+function allData(){ const d={kind:'ceny-produkcii-backup',version:APP_VERSION,saved:new Date().toISOString(),data:{},users:USERS()};
   for(const id in KEYS){ const a=api(id); d.data[id]=a?a.state():JSON.parse(LS.get(KEYS[id])||'null'); } return d; }
 function backupAll(){
   const d=allData(), name=`цены-на-продукцию-копия-${new Date().toISOString().slice(0,10)}.json`;
@@ -141,6 +145,7 @@ function restoreAll(){
     const bad=Object.keys(KEYS).filter(id=>d.data[id]&&!ok(id,d.data[id])); if(bad.length){ alert('Копия повреждена ('+bad.join(', ')+') — ничего не изменено.'); return; }
     if(!confirm(`Заменить все данные копией от ${new Date(d.saved).toLocaleString('ru-RU')}?`)) return;
     for(const id in KEYS) if(d.data[id]) LS.set(KEYS[id],JSON.stringify(d.data[id]));
+    if(Array.isArray(d.users)&&d.users.length) LS.set('ceny.users',JSON.stringify(d.users));
     LS.del('sdelnye-rascenki-ceh2.zpt'); location.reload(); }); };
   inp.click();
 }
@@ -190,6 +195,73 @@ function dlgSettings(){
   const r=document.getElementById('u_reset'); if(r) r.onclick=()=>{ if(!confirm('Вернуть версию программы, встроенную в файл?')) return; LS.del('ceny.code'); LS.del('ceny.code.v'); location.reload(); };
 }
 
+/* ---------- пользователи ---------- */
+// Два пользователя на этом компьютере: каждый входит под собой, его имя ставится на все изменения.
+// Пароль хранится хешем; это защита от путаницы «кто менял», а не от злоумышленника с доступом к компьютеру.
+function USERS(){ try{ return JSON.parse(LS.get('ceny.users')||'[]'); }catch(e){ return []; } }
+function ME(){ try{ return JSON.parse(LS.get('ceny.user')||'null'); }catch(e){ return null; } }
+async function pwHash(salt,pw){ const h=await sha256(salt+':'+pw); if(h) return h; let x=0; const s=salt+':'+pw; for(let i=0;i<s.length;i++) x=(x*31+s.charCodeAt(i))|0; return 'x'+x; }
+const mkSalt=()=>Math.random().toString(36).slice(2)+Date.now().toString(36);
+function startLogin(){ LS.del('ceny.user'); document.getElementById('t_username').textContent='вход…'; loginScreen(); }
+function setMe(u){ LS.set('ceny.user',JSON.stringify({id:u.id,name:u.name})); document.getElementById('t_username').textContent=u.name; document.getElementById('login').hidden=true; refresh(); }
+function loginScreen(err){
+  const L=document.getElementById('login'), us=USERS(); L.hidden=false;
+  if(us.length<2){
+    L.innerHTML=`<div class="lg"><div class="lgbox"><div class="logo big">₽</div><h1>Пользователи программы</h1><p>Программой пользуются два человека. Каждый входит под собой — так у каждой позиции видно, кто её менял последним.</p>
+      ${[0,1].map(i=>`<div class="lgrow"><b>Пользователь ${i+1}</b><input type="text" id="un${i}" placeholder="Имя, например «Ирина»" value="${esc((us[i]||{}).name||'')}"><input type="password" id="up${i}" placeholder="Пароль, не короче 4 символов"></div>`).join('')}
+      <div class="lgerr" id="lgerr">${esc(err||'')}</div><button class="btn pri wide" id="lg_go">Создать и войти первым</button></div></div>`;
+    document.getElementById('lg_go').onclick=async()=>{ const E=document.getElementById('lgerr');
+      const rows=[0,1].map(i=>({name:document.getElementById('un'+i).value.trim(),pw:document.getElementById('up'+i).value}));
+      if(rows.some(r=>!r.name)) return E.textContent='Укажите имена обоих пользователей.';
+      if(rows[0].name.toLowerCase()===rows[1].name.toLowerCase()) return E.textContent='Имена должны различаться.';
+      if(rows.some(r=>r.pw.length<4)) return E.textContent='Пароль — не короче 4 символов.';
+      const list=[]; for(const r of rows){ const s=mkSalt(); list.push({id:'u'+Math.random().toString(36).slice(2,8),name:r.name,salt:s,hash:await pwHash(s,r.pw)}); }
+      LS.set('ceny.users',JSON.stringify(list)); setMe(list[0]); };
+    return;
+  }
+  let sel=null;
+  L.innerHTML=`<div class="lg"><div class="lgbox"><div class="logo big">₽</div><h1>Кто работает?</h1><p>Выберите себя и введите пароль.</p>
+    <div class="lgusers">${us.map(u=>`<button class="lgu" data-u="${u.id}">${ico('user',22)}<span>${esc(u.name)}</span></button>`).join('')}</div>
+    <input type="password" id="lg_pw" placeholder="Пароль" disabled><div class="lgerr" id="lgerr">${esc(err||'')}</div>
+    <button class="btn pri wide" id="lg_go" disabled>Войти</button></div></div>`;
+  const pw=document.getElementById('lg_pw'), btn=document.getElementById('lg_go');
+  L.querySelectorAll('[data-u]').forEach(b=>b.onclick=()=>{ sel=us.find(u=>u.id===b.dataset.u); L.querySelectorAll('.lgu').forEach(x=>x.classList.toggle('on',x===b)); pw.disabled=false; btn.disabled=false; pw.focus(); });
+  const go=async()=>{ if(!sel) return; if(await pwHash(sel.salt,pw.value)!==sel.hash){ document.getElementById('lgerr').textContent='Неверный пароль.'; pw.select(); return; } setMe(sel); };
+  btn.onclick=go; pw.onkeydown=e=>{ if(e.key==='Enter') go(); };
+}
+document.getElementById('t_user').onclick=()=>{ const me=ME(); if(!me){ loginScreen(); return; } const d=document.getElementById('sdlg');
+  d.innerHTML=`<div class="sd-h"><b>${esc(me.name)}</b><button class="tbtn icon" onclick="sdlg.close()">✕</button></div>
+  <div class="sd-b"><div class="row"><button class="btn pri" id="us_sw">Сменить пользователя</button></div><hr>
+    <b>Сменить пароль</b><label style="margin-top:8px;display:block"><span>Текущий пароль</span><input type="password" id="us_old"></label><label style="margin-top:8px;display:block"><span>Новый пароль</span><input type="password" id="us_new"></label>
+    <div class="row" style="margin-top:8px"><button class="btn" id="us_pw">Сохранить пароль</button></div>
+    <hr><b>Переименовать</b><label style="margin-top:8px;display:block"><span>Имя</span><input type="text" id="us_name" value="${esc(me.name)}"></label><div class="row" style="margin-top:8px"><button class="btn" id="us_rn">Сохранить имя</button></div>
+    <div class="lgerr" id="us_err"></div></div>`;
+  d.showModal();
+  const $=id=>document.getElementById(id);
+  $('us_sw').onclick=()=>{ d.close(); startLogin(); };
+  $('us_pw').onclick=async()=>{ const list=USERS(), u=list.find(x=>x.id===me.id); if(!u) return;
+    if(await pwHash(u.salt,$('us_old').value)!==u.hash) return $('us_err').textContent='Текущий пароль неверный.';
+    if($('us_new').value.length<4) return $('us_err').textContent='Новый пароль — не короче 4 символов.';
+    u.salt=mkSalt(); u.hash=await pwHash(u.salt,$('us_new').value); LS.set('ceny.users',JSON.stringify(list)); d.close(); toastS('Пароль изменён'); };
+  $('us_rn').onclick=()=>{ const list=USERS(), u=list.find(x=>x.id===me.id), n=$('us_name').value.trim(); if(!u||!n) return;
+    if(list.some(x=>x!==u&&x.name.toLowerCase()===n.toLowerCase())) return $('us_err').textContent='Такое имя уже есть.';
+    u.name=n; LS.set('ceny.users',JSON.stringify(list)); setMe(u); d.close(); toastS('Имя изменено'); };
+};
+
+/* ---------- «в работе» и последние изменения по всем справочникам ---------- */
+const SECNAME={price:'Цены и материалы',c1:'Расценки цех 1',c2:'Цех 2 и калькуляции'};
+function inWorkAll(){ const out=[]; for(const k of ['price','c1','c2']){ const a=api(k); if(a&&a.inwork) out.push(...a.inwork(k)); } return out.sort((a,b)=>(b.at||'').localeCompare(a.at||'')); }
+function dlgWork(){ const list=inWorkAll(), d=document.getElementById('sdlg');
+  const tab=w=>w.list==='calcs'?['c2','calc']:w.list==='mats'?['price','mat']:w.kind==='price'?['price','prod']:[w.kind,'rates'];
+  d.innerHTML=`<div class="sd-h"><b>В работе — ждут подтверждения</b><button class="tbtn icon" onclick="sdlg.close()">✕</button></div>
+  <div class="sd-b"><p class="muted">Позиция попадает сюда, когда её изменили в карточке или взяли в работу. Подтверждают в карточке позиции.</p>
+  ${list.length?`<div class="wl">${list.map(w=>{ const t=tab(w); return `<div class="wi"><div><b>${esc(w.label)}</b><span>${esc(SECNAME[w.kind])} · ${esc(w.by||'')}${w.at?', '+new Date(w.at).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'}):''}</span></div><button class="btn sm" onclick="sdlg.close();show('${t[0]==='c2'&&t[1]==='calc'?'calc':t[0]}','${t[1]}')">Открыть раздел</button></div>`; }).join('')}</div>`:'<p>Ничего нет.</p>'}</div>`;
+  d.showModal(); }
+function recentHtml(){ const all=[];
+  for(const k of ['price','c1','c2']){ const a=api(k); if(a&&a.log) for(const l of a.log()) all.push({...l,k}); }
+  all.sort((a,b)=>(b.ts||'').localeCompare(a.ts||'')); const top=all.slice(0,10); if(!top.length) return '';
+  return `<h2>Последние изменения</h2><div class="recent">${top.map(l=>`<div class="ri"><span class="rt">${new Date(l.ts).toLocaleString('ru-RU',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'})}</span><span class="rb">${esc(l.by||'—')}</span><span class="rs">${esc(SECNAME[l.k])}</span><span class="rx">${esc(l.text)}</span></div>`).join('')}</div>`; }
+
 function SHELL_CSS(){ return `
 html,body{height:100%}body{margin:0;background:var(--bg);overflow:hidden;display:flex;flex-direction:column}
 .top{flex:none;display:flex;align-items:center;gap:18px;padding:0 18px;height:60px;background:#101a2e;color:#fff;z-index:3}
@@ -226,6 +298,19 @@ html,body{height:100%}body{margin:0;background:var(--bg);overflow:hidden;display
 .sd-b hr{border:0;border-top:1px solid var(--line);margin:16px 0}.muted{color:var(--muted);font-size:13px}.row{display:flex;gap:8px;flex-wrap:wrap}
 .btn{border:1px solid var(--line);background:var(--panel);padding:7px 12px;border-radius:10px;cursor:pointer;white-space:nowrap;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px}
 .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}.btn.sm{padding:5px 10px;font-size:13px}
+.ai.work{border-left-color:#c9826f}.ai.work .aic{background:#F0DAD5;color:#7a2e1d}
+#login{position:fixed;inset:0;z-index:40;background:radial-gradient(1100px 520px at 15% -10%,#dfe8ff 0,transparent 60%),var(--bg);overflow:auto}#login[hidden]{display:none}
+.lg{min-height:100%;display:grid;place-items:center;padding:24px;box-sizing:border-box}.lgbox{width:min(480px,94vw);background:#fff;border:1px solid var(--line);border-radius:20px;padding:30px;box-shadow:0 24px 60px rgba(20,32,60,.12)}
+.lgbox h1{margin:12px 0 6px;font-size:23px}.lgbox p{color:var(--muted);margin:0 0 16px}.logo.big{width:52px;height:52px;font-size:26px;color:#fff}
+.lgrow{display:grid;gap:6px;margin-bottom:14px}.lgbox input{width:100%;box-sizing:border-box;border:1px solid #d4d9e3;border-radius:10px;padding:10px 12px;font:inherit}
+.lgusers{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.lgu{display:flex;flex-direction:column;align-items:center;gap:6px;padding:16px;border:1px solid var(--line);border-radius:14px;background:#fff;cursor:pointer;font:inherit;color:inherit}
+.lgu:hover{border-color:#c4cfe6}.lgu.on{border-color:var(--accent);background:var(--accent-soft);color:var(--accent)}
+.lgerr{color:var(--err);font-size:13px;min-height:18px;margin:6px 0}.btn.wide{width:100%;justify-content:center;padding:11px}
+.recent{background:var(--panel);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.ri{display:grid;grid-template-columns:110px 120px 170px 1fr;gap:10px;padding:9px 14px;border-bottom:1px solid var(--line);font-size:13px}.ri:last-child{border:0}
+.rt{color:var(--muted)}.rb{font-weight:600}.rs{color:var(--muted)}
+.wl{display:grid;gap:8px}.wi{display:flex;align-items:center;gap:10px;background:#F0DAD5;border-radius:10px;padding:9px 12px}.wi div{flex:1}.wi span{display:block;font-size:12px;color:#6b3a2e}
+@media (max-width:760px){.ri{grid-template-columns:1fr;gap:2px}}
 .stoast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:#101a2e;color:#fff;padding:10px 16px;border-radius:10px;z-index:50;font-size:13px}
 @media (max-width:760px){.top{gap:10px;padding:0 10px}.brand span:last-child{display:none}.sec button span{display:none}.sec button{padding:8px 10px}.tools .tbtn span{display:none}.hhead h1{font-size:21px}}
 `; }
@@ -244,5 +329,6 @@ if(DESK){
 
 show(cur);
 window.__APP_OK=true;
+startLogin();
 setTimeout(()=>{ const last=+LS.get('ceny.updChecked')||0; if(Date.now()-last>3*3600e3) checkUpdate(false); else setUpd('последняя версия, проверено '+new Date(last).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})); },2500);
 setInterval(()=>checkUpdate(false),6*3600e3);

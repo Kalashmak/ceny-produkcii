@@ -140,7 +140,8 @@ function migrate(){
   try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){}
 }
 function save(text){
-  if(text) S.log.unshift({ts:new Date().toISOString(), text}); S.log=S.log.slice(0,500);
+  metaStamp();   // кто последний менял каждую позицию
+  if(text) S.log.unshift({ts:new Date().toISOString(), text, by:CU().name}); S.log=S.log.slice(0,500);
   S.meta=S.meta||{}; S.meta.changed=new Date().toISOString();
   try{ localStorage.setItem(KEY, JSON.stringify(S)); document.getElementById('saved').textContent='Сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
   catch(e){ alert('Не удалось сохранить данные в браузере: '+e.message+'\nСохраните резервную копию в Настройках.'); }
@@ -309,7 +310,7 @@ function sideList(){
     const gs=S.groups.filter(g=>g.categoryId===c.id).sort((a,b)=>a.no-b.no);
     return `<h4>${esc(c.name)}</h4>`+gs.map(g=>{
       const l=lvl(issuesFor(g.id)), n=opsOf(g.id).length;
-      return `<button class="gitem ${ui.group===g.id?'on':''}" onclick="ui.group='${g.id}';ui.q='';render()"><b>№${g.no}</b> ${esc(g.name)}${l?`<span class="dot ${l}"></span>`:''}
+      return `<button class="gitem ${ui.group===g.id?'on':''}${g.status==='work'?' inwork':''}" onclick="ui.group='${g.id}';ui.q='';render()"><b>№${g.no}</b> ${esc(g.name)}${l?`<span class="dot ${l}"></span>`:''}
       <small>${g.kind==='piece'?`${nf(costOf(g),5)} ₽/с · ${n} ${plural(n,'операция','операции','операций')}`:g.kind==='tariff'?`прейскурант · ${n} ${plural(n,'цена','цены','цен')}`:`${nf(costOf(g),0)} ₽/час · повремённая`}</small></button>`;
     }).join('')||'<div class="muted" style="padding:4px 10px">нет участков</div>';
   }).join('')+`<div style="padding:10px"><button class="btn sm" onclick="dlgGroup()">+ Участок</button></div></div>`;
@@ -374,7 +375,7 @@ function renderTariffTable(g){
     names.map(n=>{ const row=all.filter(o=>o.name===n);
       return `<tr><td>${esc(n)}</td>${g.variants.map(v=>{ const o=row.find(x=>x.variant===v); if(!o) return '<td class="n muted">—</td>';
         const b=opBase(o), ch=b&&b.rate?(o.price/b.rate-1)*100:null, is=issuesFor(g.id,o.id), l=lvl(is);
-        return `<td class="n cc ${l?'c-'+l:''}" onclick="dlgOp('${o.id}')" title="${esc(is.map(x=>x.text).join('\n'))}"><b>${nf(o.price,3)}</b><br><small class="${pcls(ch)}">${b?pct(ch):'новая'}</small></td>`; }).join('')}</tr>`; }).join('')+`</tbody></table>`
+        return `<td class="n cc ${l?'c-'+l:''}${o.status==='work'?' inwork':''}" onclick="dlgOp('${o.id}')" title="${esc(is.map(x=>x.text).join('\n'))}"><b>${nf(o.price,3)}</b><br><small class="${pcls(ch)}">${b?pct(ch):'новая'}</small></td>`; }).join('')}</tr>`; }).join('')+`</tbody></table>`
     : `<div class="empty">${q?'Ничего не найдено.':'Позиций пока нет.'}</div>`;
 }
 function renderTable(){
@@ -387,7 +388,7 @@ function renderTable(){
     list.map((o,i)=>{
       const r=rateOf(o,g), b=opBase(o), l=lvl(issuesFor(g.id,o.id)), last=o.history[o.history.length-1];
       const ch=b&&b.rate? (r/b.rate-1)*100 : null;
-      return `<tr class="click ${l?'r-'+l:''}" onclick="dlgOp('${o.id}')" title="${esc(issuesFor(g.id,o.id).map(x=>x.text).join('\n'))}"><td class="n">${i+1}</td><td>${esc(o.art)}</td><td>${esc(o.name)}</td><td class="n">${o.pcs}</td><td class="n">${nfa(o.time)}</td><td class="n">${nfa(o.time/o.pcs,3)}</td><td class="n"><b>${nf(r,3)}</b></td><td class="n">${b?nf(b.rate,3):'—'}</td><td class="n ${pcls(ch)}">${pct(ch)}</td><td class="n">${fd(last&&last.date)}</td></tr>`;
+      return `<tr class="click ${l?'r-'+l:''}${o.status==='work'?' inwork':''}" onclick="dlgOp('${o.id}')" title="${esc(issuesFor(g.id,o.id).map(x=>x.text).join('\n'))}"><td class="n">${i+1}</td><td>${esc(o.art)}</td><td>${esc(o.name)}</td><td class="n">${o.pcs}</td><td class="n">${nfa(o.time)}</td><td class="n">${nfa(o.time/o.pcs,3)}</td><td class="n"><b>${nf(r,3)}</b></td><td class="n">${b?nf(b.rate,3):'—'}</td><td class="n ${pcls(ch)}">${pct(ch)}</td><td class="n">${fd(last&&last.date)}${o.mod?`<div class="hint">${esc(o.mod.by)}</div>`:''}</td></tr>`;
     }).join('')+`</tbody></table>` : `<div class="empty">${q?'Ничего не найдено.':'Операций пока нет. Добавьте первую или вставьте список из Excel.'}</div>`;
 }
 function histTable(g){
@@ -422,6 +423,7 @@ function dlgOp(oid, gid){
     <div id="o_msgs"></div>
     ${oid?`<h3 style="margin-top:14px">История</h3><table><thead><tr><th>С даты</th><th class="n">Штук</th><th class="n">Время, с</th><th class="n">Расценка</th><th>Основание</th></tr></thead><tbody>${hist}</tbody></table>`:''}
   </div>
+  ${oid?metaPanel(op,(op.art?op.art+' ':'')+op.name):''}
   <div class="dlg-f">${oid?`<button class="btn danger" style="margin-right:auto" onclick="delOp('${oid}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="o_save">Сохранить</button></div>`);
   const f=()=>({id:op.id,groupId:op.groupId,art:o_art.value.trim(),name:o_name.value.trim().replace(/\s+/g,' '),pcs:num(o_pcs.value),time:num(o_time.value),history:op.history});
   const recheck=()=>{
@@ -471,6 +473,7 @@ function dlgPrice(oid, gid){
     <div id="o_msgs"></div>
     ${oid?`<h3 style="margin-top:14px">История</h3><table><thead><tr><th>С даты</th><th class="n">Расценка</th><th>Основание</th></tr></thead><tbody>${hist}</tbody></table>`:''}
   </div>
+  ${oid?metaPanel(op,(op.art?op.art+' ':'')+op.name):''}
   <div class="dlg-f">${oid?`<button class="btn danger" style="margin-right:auto" onclick="delOp('${oid}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="o_save">Сохранить</button></div>`);
   const f=()=>({id:op.id,groupId:g.id,art:'',name:o_name.value.trim().replace(/\s+/g,' '),variant:o_var.value,price:num(o_price.value),history:op.history});
   const recheck=()=>{
@@ -626,6 +629,7 @@ function dlgGroup(gid){
   <label class="f"><span>Столбцы прейскуранта через «;» (только для прейскуранта)</span><input type="text" id="g_v" value="за 1 шт"></label>`}
   ${g.kind==='tariff'?`<label class="f"><span>Примечания к прейскуранту</span><textarea id="g_notes" rows="3">${esc(g.notes||'')}</textarea></label>`:''}
   <div id="g_msg"></div></div>
+  ${gid?metaPanel(g,'№'+g.no+' '+g.name):''}
   <div class="dlg-f">${gid&&!opsOf(gid).length?`<button class="btn danger" style="margin-right:auto" onclick="delGroup('${gid}')">Удалить участок</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="g_go">Сохранить</button></div>`);
   const chk=()=>{
     const n={...g,no:num(g_no.value),name:g_name.value.trim(),categoryId:g_cat.value};

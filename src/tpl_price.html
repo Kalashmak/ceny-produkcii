@@ -126,7 +126,8 @@ function load(){
   S=clone(SEED); S.meta={created:new Date().toISOString()}; S.zptSeen={};
 }
 function save(text){
-  if(text) S.log.unshift({ts:new Date().toISOString(), text}); S.log=S.log.slice(0,500);
+  metaStamp();   // кто последний менял каждую позицию
+  if(text) S.log.unshift({ts:new Date().toISOString(), text, by:CU().name}); S.log=S.log.slice(0,500);
   S.meta=S.meta||{}; S.meta.changed=new Date().toISOString();
   try{ localStorage.setItem(KEY, JSON.stringify(S)); document.getElementById('saved').textContent='Сохранено '+new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'}); }
   catch(e){ alert('Не удалось сохранить данные в браузере: '+e.message+'\nСохраните резервную копию в Настройках.'); }
@@ -139,13 +140,14 @@ const SECT={film:'Плёнка, картон, бумага листовая',par
 const LVL={unit:'единица',group:'группа',transport:'транспортная тара'}, LVLK={unit:'hr',group:'ht',transport:'hv'};
 const M=c=>S.mats[c];
 // Цена материала в рублях за единицу — как в Excel: цена поставщика × (курс юаня) × множитель + добавка
-function matPrice(m){ const v=m.inp*(m.cur==='CNY'?S.settings.cny:1)*m.k+(m.add||0); return m.round? R(v,3) : v; }
+// пустой множитель = 1: цену поставщика вносят вручную, множитель пока не задают
+function matPrice(m){ const v=m.inp*(m.cur==='CNY'?S.settings.cny:1)*(m.k??1)+(m.add||0); return m.round? R(v,3) : v; }
 function itemQty(p,it){ return it.q!=null? it.q : it.qp/((p[LVLK[it.lvl]])||1); }
 // Себестоимость изделия по частям; отдельно — сколько зависит от курса и от зарплаты
 function cost(p, prices){
   const pr=prices||{}; const part={film:0,parts:0,paper:0,pack:0,print:0}; let cny=0;
   for(const it of p.items){ const m=M(it.m); if(!m) continue; const pz=pr[it.m]??matPrice(m), v=itemQty(p,it)*pz; part[m.sect]=(part[m.sect]||0)+v; if(m.cur==='CNY') cny+=v; }
-  const zpt=(p.zpt||0)*(p.zptIn??1), printFix=(p.print||0)*(p.printIn??1);
+  const zpt=zptTotal(p)*(p.zptIn??1), printFix=(p.print||0)*(p.printIn??1);
   const other=Object.values(p.other||{}).reduce((a,b)=>a+b,0)+Object.values(p.otherPack||{}).reduce((a,b)=>a+b,0)+(p.misc||0);
   const mat=part.film+part.parts+part.paper+part.print+printFix, total=mat+part.pack+zpt+other;
   return {part,cny,zpt,printFix,other,mat,pack:part.pack,total};
@@ -180,6 +182,13 @@ const cnyBadge='<span class="pill cny" title="Цена зависит от ку�
 let ZPT2=null;
 function loadZpt2(){ try{ const d=JSON.parse(localStorage.getItem('sdelnye-rascenki-ceh2.zpt')||'null'); if(d&&d.items) ZPT2=d; }catch(e){} }
 function zpt2(p){ if(!ZPT2) return null; return ZPT2.items[nart(p.art)] ?? null; }
+// Составной артикул: зарплатная часть набирается из калькуляций цеха 2 (номер калькуляции × количество)
+// плюс ЗПТ, вписанная вручную. it.v — последнее известное значение, если калькуляции сейчас не видно.
+function calcRec(id){ return ZPT2&&ZPT2.calcs? ZPT2.calcs[id]||null : null; }
+function zptVal(it){ const r=calcRec(it.id); return r? r[2] : (it.v??null); }
+function zptLinked(p){ let s=0; for(const it of p.zptItems||[]){ const v=zptVal(it); if(v!=null) s+=v*(it.qty||0); } return s; }
+function zptTotal(p){ return (p.zpt||0)+zptLinked(p); }
+function calcByArt(art){ if(!ZPT2||!ZPT2.calcs) return null; const k=nart(art); for(const [id,r] of Object.entries(ZPT2.calcs)) if(nart(r[0])===k) return id; return null; }
 
 /* ===================== контроль ===================== */
 function checkProd(p, c){
@@ -191,6 +200,8 @@ function checkProd(p, c){
   if(p.text?.some(t=>!t.startsWith('IB10'))) E(`В Excel в расчёт попал текст вместо числа: ${p.text.filter(t=>!t.startsWith('IB10')).join(', ')}.`);
   if(!(c.total>0)) E('Себестоимость не больше нуля.');
   if(!(isFinite(p.zpt)&&p.zpt>=0)) E('ЗПТ должна быть числом.');
+  for(const it of p.zptItems||[]){ if(!(it.qty>0)) E('Количество калькуляции в зарплатной части должно быть больше нуля.');
+    if(ZPT2&&ZPT2.calcs&&!calcRec(it.id)) E(`Калькуляция, из которой набрана ЗПТ, удалена в цехе 2 (было ${nf(it.v)} ₽). Выберите другую.`); }
   if(!(p.coef>0)) W('Не задан коэффициент наценки.');
   for(const it of p.items){ const m=M(it.m); if(!m){ E('В составе материал, которого нет в справочнике.'); continue; }
     const q=itemQty(p,it); if(!(q>0)) E(`«${m.name}»: количество должно быть больше нуля.`);
@@ -210,7 +221,7 @@ function checkProd(p, c){
 function checkMat(m){
   const out=[], E=t=>out.push({level:'error',text:t}), W=t=>out.push({level:'warn',text:t});
   if(!(m.inp>0)) E('Цена поставщика должна быть больше нуля.');
-  if(!(m.k>0)) E('Множитель должен быть больше нуля.');
+  if(m.k!=null&&!(m.k>0)) E('Множитель должен быть больше нуля или пустым.');
   if(m.warn) W(m.warn);
   return out;
 }
@@ -261,8 +272,8 @@ function renderProd(m){
     <select id="ps" style="width:auto">${[['art','как в Excel'],['mg','по наценке, сначала низкая'],['cny','по доле курса'],['zpt','по доле ЗПТ']].map(([v,t])=>`<option value="${v}" ${ui.sort===v?'selected':''}>${t}</option>`).join('')}</select>
     <span class="muted">${rows.length} из ${S.prods.length}</span></div></div>
   <div class="card" style="padding:0;margin-top:16px"><div class="scroll-x"><table><thead><tr><th>Артикул</th><th>Наименование</th><th class="n">Материалы</th><th class="n">Упаковка</th><th class="n">ЗПТ</th><th class="n">Себестоимость</th><th class="n">¥ доля</th><th class="n">Коэф.</th><th class="n">Расчётная цена</th><th class="n">Окончательная цена</th><th class="n">Со скидкой</th><th class="n">Наценка</th></tr></thead><tbody>
-  ${rows.slice(0,ui.lim).map(r=>{ const p=r.p,c=r.c; return `<tr class="click ${r.l?'r-'+r.l:''}" onclick="dlgProd('${p.id}')" title="${esc((ip[p.id]||[]).map(i=>i.text).join('\n'))}">
-    <td style="white-space:nowrap">${esc(p.art)}</td><td>${esc(p.name)}</td><td class="n">${nf(c.mat+c.other)}</td><td class="n">${nf(c.pack)}</td><td class="n">${nf(c.zpt)}</td><td class="n"><b>${nf(c.total)}</b></td>
+  ${rows.slice(0,ui.lim).map(r=>{ const p=r.p,c=r.c; return `<tr class="click ${r.l?'r-'+r.l:''}${p.status==='work'?' inwork':''}" onclick="dlgProd('${p.id}')" title="${esc((ip[p.id]||[]).map(i=>i.text).join('\n'))}">
+    <td style="white-space:nowrap">${esc(p.art)}${(p.zptItems||[]).length?' <span class="pill" title="ЗПТ набрана из калькуляций">К</span>':''}</td><td>${esc(p.name)}${p.mod?`<div class="hint">изменил ${esc(p.mod.by)}, ${metaTime(p.mod.at)}</div>`:''}</td><td class="n">${nf(c.mat+c.other)}</td><td class="n">${nf(c.pack)}</td><td class="n">${nf(c.zpt)}</td><td class="n"><b>${nf(c.total)}</b></td>
     <td class="n">${c.cny?nf(c.cny/c.total*100,0)+'%':'—'}</td><td class="n">${nfa(p.coef,2)}</td><td class="n">${nf(r.cp)}</td><td class="n"><b>${nf(p.price)}</b></td><td class="n">${nf(discPrice(p))}</td><td class="n ${r.mg!=null&&r.mg<S.settings.minMargin?'down':''}">${pct(r.mg,0)}</td></tr>`; }).join('')}</tbody></table>
   ${rows.length>ui.lim?`<div class="empty"><button class="btn" onclick="ui.lim+=300;render()">Показать ещё</button></div>`:''}${rows.length?'':'<div class="empty">Ничего не найдено.</div>'}</div></div>`;
   const pq=document.getElementById('pq'); pq.oninput=()=>{ ui.q=pq.value; ui.lim=150; renderProd(m); const e=document.getElementById('pq'); e.focus(); e.setSelectionRange(e.value.length,e.value.length); };
@@ -271,12 +282,15 @@ function renderProd(m){
 }
 
 // Карточка изделия: читаемая калькуляция с правкой количества, упаковки, ЗПТ, коэффициента и цены
-function dlgProd(id){
-  const src=id?G(id):null;
-  const d=src?clone(src):{id:'p'+Date.now().toString(36),row:1e6,art:'',name:'',size:'',date:today(),zpt:0,zptIn:1,print:0,printIn:1,coef:S.settings.coefDefault,price:null,disc:0.8,hr:null,ht:null,hv:null,items:[],other:{},hist:[]};
-  let addMode=null;
+function dlgProd(id, copyFrom){
+  const src=id?G(id):null, base=copyFrom?G(copyFrom):null;
+  // копия артикула: тот же состав, материалы и ЗПТ; новый номер, без истории, комментариев и статуса
+  const d=src?clone(src):base?Object.assign(clone(base),{id:'p'+Date.now().toString(36),row:1e6,art:base.art+' (копия)',hist:[],date:today()}):{id:'p'+Date.now().toString(36),row:1e6,art:'',name:'',size:'',date:today(),zpt:0,zptIn:1,print:0,printIn:1,coef:S.settings.coefDefault,price:null,disc:0.8,hr:null,ht:null,hv:null,items:[],other:{},hist:[],zptItems:[]};
+  if(base) for(const k of [...META_KEYS,'xerr','xlsCost','text','zptAck']) delete d[k];
+  d.zptItems=d.zptItems||[];
+  let addMode=null, zpMode=null;
   const draw=()=>{
-    const c=cost(d), cp=calcPrice(d,c), z2=zpt2(d);
+    const c=cost(d), cp=calcPrice(d,c);
     const sects=['film','parts','paper','print','pack'].map(s=>{ const its=d.items.map((it,i)=>({it,i})).filter(x=>M(x.it.m)&&M(x.it.m).sect===s); if(!its.length) return '';
       return `<tr class="sect"><td colspan="6"><b>${SECT[s]}</b></td><td class="n"><b>${nf(c.part[s])}</b></td><td></td></tr>`+its.map(({it,i})=>{ const m=M(it.m), q=itemQty(d,it), pz=matPrice(m);
         return `<tr${it.dbl?' class="r-warn"':''}><td>${esc(m.name)} ${m.cur==='CNY'?cnyBadge:''}${it.lvl?`<div class="hint">${LVL[it.lvl]}${it.dbl?' · учтён дважды':''}</div>`:''}</td>
@@ -290,7 +304,12 @@ function dlgProd(id){
       <div class="grid3" style="margin-top:8px"><label class="f"><span>Поиск</span><input type="text" id="ad_q" value="${esc(addMode.q)}"></label>
       <label class="f"><span>Где</span><select id="ad_l"><option value="">на изделие</option>${Object.entries(LVL).map(([k,t])=>`<option value="${k}" ${addMode.l===k?'selected':''}>упаковка: ${t}</option>`).join('')}</select></label></div>
       <div id="ad_list" style="max-height:220px;overflow:auto"></div></div>`:'';
-    openDlg(`<div class="dlg-h"><h3>${src?esc(d.art):'Новое изделие'}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
+    const sugId=!d.zptItems.length?calcByArt(d.art):null, sug=sugId?calcRec(sugId):null;
+    const zrows=d.zptItems.map((it,i)=>{ const r=calcRec(it.id), v=zptVal(it);
+      return `<tr><td>${r?`<b>${esc(r[0])}</b> · ${esc(r[1])}`:`<span class="down">калькуляция не найдена</span> (было ${nf(it.v)} ₽)`}</td><td class="n"><input type="text" data-zi="${i}" value="${esc(String(it.qty).replace('.',','))}" style="width:70px;text-align:right" inputmode="decimal"></td><td class="n">${nf(v,3)}</td><td class="n"><b data-zs="${i}">${nf((v||0)*(it.qty||0),3)}</b></td><td><button class="btn sm danger" data-zdel="${i}" title="Убрать">✕</button></td></tr>`; }).join('');
+    const zpick=zpMode?`<div class="card" style="background:var(--soft);margin:10px 0"><div class="row"><b style="flex:1">Добавить калькуляцию</b><button class="btn sm" id="zp_x">Закрыть</button></div>
+      <input type="text" id="zp_q" placeholder="Артикул или название" value="${esc(zpMode.q)}" style="margin:8px 0"><div id="zp_list" style="max-height:220px;overflow:auto"></div></div>`:'';
+    openDlg(`<div class="dlg-h"><h3>${src?esc(d.art):base?'Копия артикула '+esc(base.art):'Новое изделие'}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
     <div class="dlg-b" id="pf_">
       <div class="grid3"><label class="f"><span>Артикул</span><input type="text" id="p_art" value="${esc(d.art)}"></label>
       <label class="f" style="grid-column:span 2"><span>Наименование</span><input type="text" id="p_name" value="${esc(d.name)}"></label></div>
@@ -300,8 +319,12 @@ function dlgProd(id){
       <h3 style="margin-top:4px">Состав</h3>
       <table><thead><tr><th>Материал</th><th class="n">Количество</th><th>Ед.</th><th class="n"></th><th class="n">На изделие</th><th class="n">Цена, ₽/ед.</th><th class="n">Сумма, ₽</th><th></th></tr></thead><tbody>${sects}${oth}</tbody></table>
       <button class="btn sm" id="ad_open" style="margin-top:8px">+ материал</button>${pick}
-      <div class="grid3" style="margin-top:14px"><label class="f"><span>ЗПТ с налогами и ИТР, ₽ на изделие</span><input type="text" id="p_zpt" value="${esc(String(d.zpt).replace('.',','))}" inputmode="decimal">
-        <div class="hint">${z2!=null?`По калькуляции цеха 2: <b>${nf(z2)}</b> ${Math.abs(z2-d.zpt)>0.005?`<button class="btn sm" id="p_z2">Взять</button>`:'— совпадает'}`:'В калькуляциях цеха 2 этого артикула нет (или программа цеха 2 не открывалась в этом браузере).'}</div></label>
+      <h3 style="margin-top:16px">Зарплатная часть — из справочника калькуляций</h3>
+      ${ZPT2&&ZPT2.calcs?'':'<div class="hint">Калькуляции цеха 2 ещё не посчитаны — откройте раздел «Калькуляции».</div>'}
+      <table><thead><tr><th>Калькуляция</th><th class="n">Количество</th><th class="n">ЗПТ за 1, ₽</th><th class="n">Сумма, ₽</th><th></th></tr></thead><tbody>${zrows||'<tr><td colspan="5" class="muted">Калькуляции не добавлены — ЗПТ задана вручную ниже.</td></tr>'}</tbody></table>
+      <div class="row" style="margin-top:8px"><button class="btn sm" id="zp_open">+ калькуляция</button>${sug?`<button class="btn sm pri" id="zp_sug">Набрать из калькуляции ${esc(sug[0])} (${nf(sug[2])} ₽)</button><span class="hint">вместо ЗПТ из Excel ${nf(d.zpt)} ₽</span>`:''}</div>${zpick}
+      <div class="grid3" style="margin-top:14px"><label class="f"><span>ЗПТ вручную, ₽ (не из калькуляций)</span><input type="text" id="p_zpt" value="${esc(String(d.zpt).replace('.',','))}" inputmode="decimal">
+        <div class="hint">Итого ЗПТ: <b id="p_zt">${nf(zptTotal(d))}</b> ₽</div></label>
       <label class="f"><span>Печать на стороне, ₽ (числом)</span><input type="text" id="p_pr" value="${esc(String(d.print||0).replace('.',','))}" inputmode="decimal">${d.print&&d.printIn===0?`<label class="row hint"><input type="checkbox" id="p_prin"> включить в себестоимость (в Excel не входила)</label>`:''}</label>
       <label class="f"><span>Коэффициент наценки</span><input type="text" id="p_coef" value="${esc(String(d.coef??'').replace('.',','))}" inputmode="decimal"><div class="hint">в Excel: 1,25 / 1,4 / 1,5 / 1,75 / 1,7</div></label></div>
       <div class="grid3"><label class="f"><span>Окончательная цена с НДС, ₽</span><input type="text" id="p_price" value="${esc(d.price==null?'':String(d.price).replace('.',','))}" inputmode="decimal"><button class="btn sm" id="p_takecp" style="margin-top:4px">= расчётная ${nf(cp)}</button></label>
@@ -310,7 +333,8 @@ function dlgProd(id){
       <div id="p_tot"></div><div id="p_msg"></div>
       ${d.hist&&d.hist.length?`<h3 style="margin-top:12px">История окончательной цены</h3><table><tbody>${d.hist.slice().reverse().map((h,i,a)=>{ const prev=a[i+1]; return `<tr><td>${fd(h.date)}</td><td class="n">${nf(h.price)}</td><td class="n ${prev?pcls(h.price/prev.price-1):''}">${prev?pct((h.price/prev.price-1)*100):''}</td><td>${esc(h.reason||'')}</td></tr>`; }).join('')}</tbody></table>`:''}
     </div>
-    <div class="dlg-f">${src?`<button class="btn danger" style="margin-right:auto" onclick="delProd('${src.id}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="p_save">Сохранить</button></div>`,true);
+    ${src?metaPanel(src,src.art):''}
+    <div class="dlg-f">${src?`<button class="btn danger" style="margin-right:auto" onclick="delProd('${src.id}')">Удалить</button><button class="btn" id="p_copy" title="Новый артикул с тем же составом">Копировать артикул</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="p_save">Сохранить</button></div>`,true);
     totals();
     if(addMode){ const aq=document.getElementById('ad_q'); const fill=()=>{ const w=norm(aq.value).split(' ').filter(Boolean);
         const list=Object.entries(S.mats).filter(([c,m])=>w.every(x=>norm(m.name+' '+SECT[m.sect]).includes(x))).slice(0,60);
@@ -319,7 +343,15 @@ function dlgProd(id){
       aq.oninput=()=>{ addMode.q=aq.value; fill(); }; document.getElementById('ad_l').onchange=e=>addMode.l=e.target.value; document.getElementById('ad_x').onclick=()=>{ addMode=null; draw(); }; fill(); aq.focus(); }
     document.getElementById('ad_open').onclick=()=>{ addMode={q:'',l:''}; draw(); };
     document.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ d.items.splice(+b.dataset.del,1); draw(); });
-    const z=document.getElementById('p_z2'); if(z) z.onclick=()=>{ d.zpt=R(z2,2); S.zptSeen=S.zptSeen||{}; S.zptSeen[d.id]=z2; draw(); };
+    const zs=document.getElementById('zp_sug'); if(zs) zs.onclick=()=>{ d.zptItems=[{id:sugId,qty:1,v:sug[2]}]; d.zpt=0; draw(); };
+    document.getElementById('zp_open').onclick=()=>{ zpMode={q:d.art.match(/\d{4}/)?.[0]||''}; draw(); };
+    document.querySelectorAll('[data-zdel]').forEach(b=>b.onclick=()=>{ d.zptItems.splice(+b.dataset.zdel,1); draw(); });
+    const cpb=document.getElementById('p_copy'); if(cpb) cpb.onclick=()=>dlgProd(null,src.id);
+    if(zpMode){ const zq=document.getElementById('zp_q'); const fill=()=>{ const w=norm(zq.value).split(' ').filter(Boolean);
+        const list=Object.entries((ZPT2&&ZPT2.calcs)||{}).filter(([id,r])=>w.every(x=>norm(r[0]+' '+r[1]).includes(x))).slice(0,60);
+        document.getElementById('zp_list').innerHTML=list.length?`<table><tbody>${list.map(([id,r])=>`<tr class="click" data-zadd="${id}"><td><b>${esc(r[0])}</b> · ${esc(r[1])}</td><td class="n">${nf(r[2])} ₽</td></tr>`).join('')}</tbody></table>`:'<div class="hint">Ничего не найдено.</div>';
+        document.querySelectorAll('[data-zadd]').forEach(tr=>tr.onclick=()=>{ const r=calcRec(tr.dataset.zadd); d.zptItems.push({id:tr.dataset.zadd,qty:1,v:r?r[2]:null}); zpMode=null; draw(); }); };
+      zq.oninput=()=>{ zpMode.q=zq.value; fill(); }; document.getElementById('zp_x').onclick=()=>{ zpMode=null; draw(); }; fill(); zq.focus(); }
     document.getElementById('p_takecp').onclick=()=>{ d.price=R(calcPrice(d),2); draw(); };
     document.getElementById('p_save').onclick=doSave;
   };
@@ -332,23 +364,27 @@ function dlgProd(id){
     const was=(document.getElementById('p_ok')||{}).checked, needOk=errs.length===0&&list.length>0;
     document.getElementById('p_msg').innerHTML=issuesHtml(list)+(needOk?confirmBox('p_ok'):'');
     if(was&&document.getElementById('p_ok')) p_ok.checked=true;
-    const bad=[['p_hr','hr'],['p_ht','ht'],['p_hv','hv']].some(([id])=>{ const v=document.getElementById(id).value.trim(); return v&&!(num(v)>0); })||!(d.zpt>=0)||!(d.coef>0)||(d.price!=null&&!(d.price>0))||!d.art&&!d.name;
+    const zt=document.getElementById('p_zt'); if(zt) zt.textContent=nf(zptTotal(d));
+    const bad=[['p_hr','hr'],['p_ht','ht'],['p_hv','hv']].some(([id])=>{ const v=document.getElementById(id).value.trim(); return v&&!(num(v)>0); })||!(d.zpt>=0)||d.zptItems.some(it=>!(it.qty>0))||!(d.coef>0)||(d.price!=null&&!(d.price>0))||!d.art&&!d.name;
     p_save.disabled=bad||(needOk&&!(document.getElementById('p_ok')||{}).checked);
   };
   // один обработчик на диалог: поля меняют копию изделия, итог пересчитывается без перерисовки
   dlg.oninput=dlg.onchange=e=>{ const t=e.target, v=t.value;
-    if(t.dataset.i!=null){ const it=d.items[+t.dataset.i]; it[t.dataset.f]=num(v); t.className=num(v)>0?'':'bad';
+    if(t.dataset.zi!=null){ const it=d.zptItems[+t.dataset.zi]; it.qty=num(v); t.className=num(v)>0?'':'bad'; const s=document.querySelector(`[data-zs="${t.dataset.zi}"]`); if(s) s.textContent=nf((zptVal(it)||0)*(it.qty||0),3); }
+    else if(t.dataset.i!=null){ const it=d.items[+t.dataset.i]; it[t.dataset.f]=num(v); t.className=num(v)>0?'':'bad';
       const row=t.closest('tr'); const q=itemQty(d,it), pz=matPrice(M(it.m)); row.children[4].textContent=nfa(q,5); row.children[6].innerHTML=`<b>${nf(q*pz,3)}</b>`; }
     else if(t.id==='p_art') d.art=v.trim(); else if(t.id==='p_name') d.name=v.trim();
     else if(['p_hr','p_ht','p_hv'].includes(t.id)){ d[t.id.slice(2)]=v.trim()?num(v):null; if(e.type==='change') draw(); }
     else if(t.id==='p_zpt') d.zpt=num(v); else if(t.id==='p_pr') d.print=num(v)||0; else if(t.id==='p_prin') d.printIn=t.checked?1:0;
     else if(t.id==='p_coef') d.coef=num(v); else if(t.id==='p_price') d.price=v.trim()?num(v):null; else if(t.id==='p_disc') d.disc=num(v);
-    if(!['ad_q','ad_l','p_ok'].includes(t.id)) totals(); else if(t.id==='p_ok') totals(); };
+    if(!['ad_q','ad_l','p_ok','zp_q','metaNote'].includes(t.id)) totals(); else if(t.id==='p_ok') totals(); };
   function doSave(){ totals(); if(p_save.disabled) return; const date=document.getElementById('p_date').value||today();
     if(src&&src.price!==d.price&&d.price!=null){ d.hist=(d.hist||[]).filter(h=>h.date!==date); d.hist.push({date,price:R(d.price,2),reason:'Правка'}); d.hist.sort((a,b)=>a.date<b.date?-1:1); }
     for(const it of d.items) delete it.dbl; // проверено и пересохранено
-    if(src){ Object.keys(src).forEach(k=>delete src[k]); Object.assign(src,d); save(`Изделие ${d.art}: изменено`); }
-    else { if(d.price!=null) d.hist=[{date,price:R(d.price,2),reason:'Новое изделие'}]; S.prods.push(d); save(`Добавлено изделие ${d.art}`); }
+    // калькуляции видны и приняты при сохранении: предупреждение о ЗПТ сработает при следующем их изменении
+    for(const it of d.zptItems){ const v=zptVal(it); if(v!=null) it.v=v; } if(d.zptItems.length) d.zptAck=R(zptTotal(d),4); else delete d.zptAck;
+    if(src){ for(const k of META_KEYS) d[k]=src[k]; Object.keys(src).forEach(k=>delete src[k]); Object.assign(src,d); save(`Изделие ${d.art}: изменено`); }
+    else { if(d.price!=null) d.hist=[{date,price:R(d.price,2),reason:base?'Копия артикула '+base.art:'Новое изделие'}]; S.prods.push(d); save(base?`Скопирован артикул ${base.art} → ${d.art}`:`Добавлено изделие ${d.art}`); }
     closeDlg(); render(); }
   dlg.addEventListener('close',()=>{ dlg.oninput=dlg.onchange=null; },{once:true});
   draw();
@@ -364,16 +400,19 @@ function renderMat(m){
     if(!list.length) return '';
     return `<div class="card" style="padding:0;margin-top:16px"><h3 style="padding:14px 16px 0">${SECT[s]}</h3><div class="scroll-x"><table><thead><tr><th>Материал</th><th>Ед.</th><th class="n">Цена поставщика</th><th class="n">× курс</th><th class="n">Множитель</th><th class="n">Добавка</th><th class="n">Цена, ₽/ед.</th><th class="n">Изменение</th><th class="n">Дата цены</th><th class="n">Изделий</th></tr></thead><tbody>
     ${list.map(([c,x])=>{ const h=x.hist&&x.hist.length?x.hist[x.hist.length-1]:null, now=matPrice(x), ch=h&&h.price?(now/h.price-1)*100:null, l=lvl(im[c]||[]);
-      return `<tr class="click ${l?'r-'+l:''}" onclick="dlgMat('${c}')" title="${esc((im[c]||[]).map(i=>i.text).join('\n'))}"><td>${esc(x.name)}</td><td>${esc(x.unit)}</td><td class="n">${nfa(x.inp,4)} ${x.cur==='CNY'?'¥':'₽'}</td><td class="n">${x.cur==='CNY'?nfa(S.settings.cny,4):'—'}</td>
-      <td class="n">${nfa(x.k,5)}</td><td class="n">${x.add?nf(x.add):'—'}</td><td class="n"><b>${nf(now,3)}</b></td><td class="n ${pcls(ch)}">${h?pct(ch):'—'}</td><td class="n">${fd(x.date)}</td><td class="n">${use[c]||0}</td></tr>`; }).join('')}</tbody></table></div></div>`; }).join('');
+      return `<tr class="click ${l?'r-'+l:''}${x.status==='work'?' inwork':''}" onclick="dlgMat('${c}')" title="${esc((im[c]||[]).map(i=>i.text).join('\n'))}"><td>${esc(x.name)}${x.mod?`<div class="hint">изменил ${esc(x.mod.by)}, ${metaTime(x.mod.at)}</div>`:''}</td><td>${esc(x.unit)}</td><td class="n">${nfa(x.inp,4)} ${x.cur==='CNY'?'¥':'₽'}</td><td class="n">${x.cur==='CNY'?nfa(S.settings.cny,4):'—'}</td>
+      <td class="n">${x.k==null?'—':nfa(x.k,5)}</td><td class="n">${x.add?nf(x.add):'—'}</td><td class="n"><b>${nf(now,3)}</b></td><td class="n ${pcls(ch)}">${h?pct(ch):'—'}</td><td class="n">${fd(x.date)}</td><td class="n">${use[c]||0}</td></tr>`; }).join('')}</tbody></table></div></div>`; }).join('');
   m.innerHTML=`<div class="card"><div class="row"><h3 style="margin:0;flex:1">Справочник материалов</h3><button class="btn no-print" onclick="dlgMat(null)">+ Материал</button></div>
-    <div class="muted" style="margin:6px 0 12px">Цена в рублях за единицу = цена поставщика × (курс юаня для ¥) × множитель + добавка. Множитель взят из формул Excel: доставка, хранение, банк, расход, пересчёт листа в м² и т. п. Откройте материал, чтобы увидеть формулу и изменить цену — все изделия с этим материалом пересчитаются.</div>
+    <div class="muted" style="margin:6px 0 12px">Цена в рублях за единицу = цена поставщика × (курс юаня для ¥) × множитель + добавка. Множитель взят из формул Excel (доставка, хранение, банк, расход, пересчёт листа в м²); у новых материалов его можно оставить пустым — тогда цена в рублях равна цене поставщика. Откройте материал, чтобы увидеть формулу и изменить цену — все изделия с этим материалом пересчитаются.</div>
     <input type="text" id="mq" placeholder="Поиск материала" value="${esc(ui.mq||'')}" style="max-width:320px"></div>${groups}`;
   const mq=document.getElementById('mq'); mq.oninput=()=>{ ui.mq=mq.value; renderMat(m); const e=document.getElementById('mq'); e.focus(); e.setSelectionRange(e.value.length,e.value.length); };
 }
 function dlgMat(col){
   const src=col?S.mats[col]:null;
-  const d=src?clone(src):{name:'',sect:'parts',cur:'RUB',inp:'',k:1,add:0,unit:'шт',round:false,hist:[]};
+  const d=src?clone(src):{name:'',sect:'parts',cur:'RUB',inp:'',k:null,add:0,unit:'шт',round:false,hist:[]};
+  // плёнка ПВХ: толщина в микронах вводится вручную; по умолчанию — из названия («180мкм», «0,8 мм») или из Excel
+  const pvc=/пвх/i.test(d.name), mkName=(d.name.match(/(\d+)\s*мкм/i)||[])[1], mmName=(d.name.match(/(\d+[,.]\d+)\s*мм/i)||[])[1];
+  const mk0=d.microns??(mkName?+mkName:mmName?R(num(mmName)*1000,1):d.thick?R(d.thick*1000,1):'');
   const users=col?usedBy(col):[];
   openDlg(`<div class="dlg-h"><h3>${src?esc(d.name):'Новый материал'}</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
   <div class="dlg-b" id="mf"><label class="f"><span>Название</span><input type="text" id="m_n" value="${esc(d.name)}"></label>
@@ -381,14 +420,29 @@ function dlgMat(col){
     <label class="f"><span>Единица</span><input type="text" id="m_u" value="${esc(d.unit)}"></label>
     <label class="f"><span>Валюта цены поставщика</span><select id="m_c"><option value="RUB" ${d.cur==='RUB'?'selected':''}>рубли</option><option value="CNY" ${d.cur==='CNY'?'selected':''}>юани (× курс)</option></select></label></div>
     <div class="grid3"><label class="f"><span>Цена поставщика</span><input type="text" id="m_i" value="${esc(String(d.inp).replace('.',','))}" inputmode="decimal"></label>
-    <label class="f"><span>Множитель</span><input type="text" id="m_k" value="${esc(String(d.k).replace('.',','))}" inputmode="decimal"></label>
+    <label class="f"><span>Множитель (можно оставить пустым)</span><input type="text" id="m_k" value="${esc(d.k==null?'':String(d.k).replace('.',','))}" placeholder="пусто = 1" inputmode="decimal"></label>
     <label class="f"><span>Добавка, ₽</span><input type="text" id="m_a" value="${esc(String(d.add||0).replace('.',','))}" inputmode="decimal"></label></div>
     <label class="f" style="max-width:220px"><span>Цена действует с</span><input type="date" id="m_d" value="${today()}"></label>
     ${src&&src.ktext?`<div class="msg info">Как в Excel: ₽/ед. = ${esc(src.ktext)}</div>`:''}
+    ${pvc?`<div class="pvc"><b>Плёнка ПВХ: вес ↔ площадь</b>
+      <div class="grid3" style="margin-top:8px"><label class="f"><span>Толщина плёнки, мкм</span><input type="text" id="pv_mk" value="${esc(String(mk0).replace('.',','))}" inputmode="decimal"></label>
+      <label class="f"><span>Вес, кг</span><input type="text" id="pv_kg" inputmode="decimal" placeholder="например 100"></label>
+      <label class="f"><span>Площадь, м²</span><input type="text" id="pv_m2" inputmode="decimal"></label></div>
+      <div class="hint" id="pv_res"></div>
+      <div class="pvc-note">Плотность 1,28 г/см³ — плотность пластифицированного ПВХ, 22% и более PHR.</div></div>`:''}
     <div id="m_res"></div>
     ${src&&src.hist&&src.hist.length?`<h3 style="margin-top:12px">История цены</h3><table><tbody>${src.hist.slice().reverse().map(h=>`<tr><td>${fd(h.date)}</td><td class="n">${nfa(h.inp,4)} ${src.cur==='CNY'?'¥':'₽'}</td><td class="n">${nf(h.price,3)} ₽/ед.</td><td>${esc(h.reason||'')}</td></tr>`).join('')}</tbody></table>`:''}
+  ${src?metaPanel(src,src.name):''}
   </div><div class="dlg-f">${src&&!users.length?`<button class="btn danger" style="margin-right:auto" onclick="delMat('${col}')">Удалить</button>`:''}<button class="btn" onclick="closeDlg()">Отмена</button><button class="btn pri" id="m_go">Сохранить</button></div>`);
-  const read=()=>({...d,name:m_n.value.trim(),sect:m_s.value,unit:m_u.value.trim(),cur:m_c.value,inp:num(m_i.value),k:num(m_k.value),add:num(m_a.value)||0});
+  const read=()=>{ const n={...d,name:m_n.value.trim(),sect:m_s.value,unit:m_u.value.trim(),cur:m_c.value,inp:num(m_i.value),k:m_k.value.trim()?num(m_k.value):null,add:num(m_a.value)||0};
+    if(pvc){ const mk=num(pv_mk.value); if(mk>0) n.microns=mk; } return n; };
+  // 1 м² плёнки весит толщина(мкм) × 1,28 / 1000 кг
+  if(pvc){ let last='kg'; const conv=e=>{ if(e){ if(e.target.id==='pv_kg') last='kg'; if(e.target.id==='pv_m2') last='m2'; }
+      const mk=num(pv_mk.value), kgm=mk>0?mk*1.28/1000:NaN; pv_mk.className=mk>0||!pv_mk.value.trim()?'':'bad';
+      if(!(kgm>0)){ pv_res.textContent='Введите толщину в микронах.'; return; }
+      if(last==='kg'&&pv_kg.value.trim()) pv_m2.value=nfa(num(pv_kg.value)/kgm,3); else if(last==='m2'&&pv_m2.value.trim()) pv_kg.value=nfa(num(pv_m2.value)*kgm,3);
+      pv_res.innerHTML=`1 м² плёнки ${nfa(mk,1)} мкм весит <b>${nfa(kgm,4)} кг</b> · 1 кг = <b>${nfa(1/kgm,3)} м²</b>`; };
+    ['pv_mk','pv_kg','pv_m2'].forEach(id=>document.getElementById(id).addEventListener('input',conv)); conv(); }
   const chk=()=>{ const n=read(), list=checkMat({...n,warn:null}); if(!n.name) list.unshift({level:'error',text:'Нет названия.'});
     let html='';
     if(!list.some(i=>i.level==='error')&&src){ const a=matPrice(src), b=matPrice(n), ch=(b/a-1)*100;
@@ -402,7 +456,7 @@ function dlgMat(col){
   mf.addEventListener('input',chk); mf.addEventListener('change',chk); chk();
   m_go.onclick=()=>{ const n=chk(); if(m_go.disabled) return; const date=m_d.value||today();
     if(src){ const before=matPrice(src); const changed=n.inp!==src.inp||n.k!==src.k||n.add!==(src.add||0)||n.cur!==src.cur;
-      delete n.warn; Object.assign(src,n);
+      delete n.warn; for(const k of META_KEYS) n[k]=src[k]; Object.assign(src,n);
       if(changed){ src.hist=src.hist||[]; src.hist.push({date,inp:src.inp,price:matPrice(src),reason:'Изменена цена'}); src.date=date;
         S.events.push({id:'e'+Date.now().toString(36),date,kind:'mat',title:`Цена «${src.name}»: ${nf(before,3)} → ${nf(matPrice(src),3)} ₽`}); }
       save(`Материал «${src.name}»: ${changed?`${nf(before,3)} → ${nf(matPrice(src),3)} ₽`:'изменены данные'}`); }
@@ -483,24 +537,34 @@ function dlgReprice(){
 // «Оставить» запоминает увиденное значение — предупреждение вернётся, только когда калькуляция изменится снова.
 function zptChanges(){
   const seen=S.zptSeen||{}, out=[];
-  for(const p of S.prods){ const z=zpt2(p); if(z==null||Math.abs(z-p.zpt)<0.005||seen[p.id]===z) continue;
+  for(const p of S.prods){
+    if((p.zptItems||[]).length){ // ЗПТ набрана из калькуляций: изменилась — сравниваем с принятой при последнем просмотре
+      const cur=zptTotal(p), old=p.zptAck??cur; if(Math.abs(cur-old)<0.005) continue;
+      const c1=cost(p), t1=c1.total, t0=t1-(cur-old)*(p.zptIn??1), d=discPrice(p);
+      out.push({p,kind:'linked',old,z:cur,t1,mg0:d!=null&&t0>0?(d/t0-1)*100:null,mg1:margin(p,c1)}); continue; }
+    const z=zpt2(p); if(z==null||Math.abs(z-p.zpt)<0.005||seen[p.id]===z) continue;
     const c0=cost(p), t1=c0.total+(z-p.zpt)*(p.zptIn??1), d=discPrice(p);
-    out.push({p,z,c0,t1,mg0:margin(p,c0),mg1:d!=null&&t1>0?(d/t1-1)*100:null}); }
+    out.push({p,kind:'free',old:p.zpt,z,t1,mg0:margin(p,c0),mg1:d!=null&&t1>0?(d/t1-1)*100:null}); }
   return out;
 }
-function zptSummary(){ const l=zptChanges(), up=l.filter(x=>x.z>x.p.zpt), g=up.map(x=>(x.z/x.p.zpt-1)*100).sort((a,b)=>a-b);
+function zptSummary(){ const l=zptChanges(), up=l.filter(x=>x.z>x.old), g=up.filter(x=>x.old>0).map(x=>(x.z/x.old-1)*100).sort((a,b)=>a-b);
   return {n:l.length,up:up.length,med:g.length?g[g.length>>1]:null,low:l.filter(x=>x.mg1!=null&&x.mg1<S.settings.minMargin&&!(x.mg0!=null&&x.mg0<S.settings.minMargin)).length}; }
 function dlgZpt2(){
-  const pl=zptChanges().sort((a,b)=>(a.mg1??1e9)-(b.mg1??1e9)), s=S.settings, low=pl.filter(x=>x.mg1!=null&&x.mg1<s.minMargin);
+  const pl=zptChanges().sort((a,b)=>(a.mg1??1e9)-(b.mg1??1e9)), s=S.settings, low=pl.filter(x=>x.mg1!=null&&x.mg1<s.minMargin), free=pl.filter(x=>x.kind==='free');
   openDlg(`<div class="dlg-h"><h3>Зарплата изменилась — проверьте цены</h3><button class="btn sm" onclick="closeDlg()">✕</button></div>
-  <div class="dlg-b"><div class="msg warn">В калькуляциях цеха 2 ЗПТ изменилась у <b>${pl.length}</b> ${plural(pl.length,'изделия','изделий','изделий')}${ZPT2&&ZPT2.updated?' (расчёт от '+new Date(ZPT2.updated).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})+')':''}. Если взять новую ЗПТ, у <b>${low.length}</b> наценка цены со скидкой будет ниже ${s.minMargin}% — этим ценам, возможно, нужен пересмотр.</div>
+  <div class="dlg-b"><div class="msg warn">ЗПТ изменилась у <b>${pl.length}</b> ${plural(pl.length,'изделия','изделий','изделий')}${ZPT2&&ZPT2.updated?' (калькуляции от '+new Date(ZPT2.updated).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})+')':''}. С новой ЗПТ у <b>${low.length}</b> наценка цены со скидкой будет ниже ${s.minMargin}% — этим ценам, возможно, нужен пересмотр.${free.length?` У ${free.length} ЗПТ ещё вписана числом: «Принять» наберёт её из калькуляции с тем же артикулом.`:''}</div>
   <label class="f" style="max-width:220px"><span>Дата</span><input type="date" id="z_date" value="${today()}"></label>
-  <div class="scroll-x"><table><thead><tr><th>Артикул</th><th>Наименование</th><th class="n">ЗПТ в цене</th><th class="n">По калькуляции</th><th class="n">Изм.</th><th class="n">Себестоимость станет</th><th class="n">Наценка сейчас</th><th class="n">Станет</th></tr></thead><tbody>${pl.slice(0,500).map(x=>`<tr class="${x.mg1!=null&&x.mg1<0?'r-err':x.mg1!=null&&x.mg1<s.minMargin?'r-warn':''}"><td>${esc(x.p.art)}</td><td>${esc(x.p.name)}</td><td class="n">${nf(x.p.zpt)}</td><td class="n"><b>${nf(x.z)}</b></td><td class="n ${pcls(x.z/x.p.zpt-1)}">${pct((x.z/x.p.zpt-1)*100)}</td><td class="n">${nf(x.t1)}</td><td class="n">${pct(x.mg0,0)}</td><td class="n ${x.mg1!=null&&x.mg1<s.minMargin?'down':''}"><b>${pct(x.mg1,0)}</b></td></tr>`).join('')}</tbody></table></div></div>
-  <div class="dlg-f"><button class="btn" id="z_keep" style="margin-right:auto" title="Предупреждение не будет показываться, пока калькуляция не изменится снова">Оставить прежнюю ЗПТ</button><button class="btn" onclick="closeDlg()">Позже</button><button class="btn pri" id="z_go" ${pl.length?'':'disabled'}>Взять новую ЗПТ</button></div>`,true);
-  z_keep.onclick=()=>{ S.zptSeen=S.zptSeen||{}; for(const x of pl) S.zptSeen[x.p.id]=x.z; save(`ЗПТ из калькуляций просмотрена, оставлена прежняя: ${pl.length} изделий`); closeDlg(); render(); };
-  z_go.onclick=()=>{ if(!confirm(`Заменить ЗПТ у ${pl.length} изделий на ЗПТ из калькуляций цеха 2?`)) return; const date=z_date.value||today();
-    const ev={id:'e'+Date.now().toString(36),date,kind:'apply',title:`ЗПТ из калькуляций цеха 2: ${pl.length} изделий`,undo:{zpt:Object.fromEntries(pl.map(x=>[x.p.id,x.p.zpt]))},costs:Object.fromEntries(S.prods.map(p=>[p.id,R(cost(p).total,4)]))};
-    S.zptSeen=S.zptSeen||{}; for(const x of pl){ x.p.zpt=R(x.z,2); S.zptSeen[x.p.id]=x.z; }
+  <div class="scroll-x"><table><thead><tr><th>Артикул</th><th>Наименование</th><th>ЗПТ</th><th class="n">Была</th><th class="n">Стала</th><th class="n">Изм.</th><th class="n">Себестоимость станет</th><th class="n">Наценка была</th><th class="n">Станет</th></tr></thead><tbody>${pl.slice(0,500).map(x=>`<tr class="${x.mg1!=null&&x.mg1<0?'r-err':x.mg1!=null&&x.mg1<s.minMargin?'r-warn':''}"><td>${esc(x.p.art)}</td><td>${esc(x.p.name)}</td><td class="muted">${x.kind==='linked'?'из калькуляций':'числом'}</td><td class="n">${nf(x.old)}</td><td class="n"><b>${nf(x.z)}</b></td><td class="n ${pcls(x.z/x.old-1)}">${x.old?pct((x.z/x.old-1)*100):'—'}</td><td class="n">${nf(x.t1)}</td><td class="n">${pct(x.mg0,0)}</td><td class="n ${x.mg1!=null&&x.mg1<s.minMargin?'down':''}"><b>${pct(x.mg1,0)}</b></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="dlg-f">${free.length?`<button class="btn" id="z_keep" style="margin-right:auto" title="Для ЗПТ, вписанной числом: не показывать, пока калькуляция не изменится снова">Оставить прежнюю (${free.length})</button>`:''}<button class="btn" onclick="closeDlg()">Позже</button><button class="btn pri" id="z_go" ${pl.length?'':'disabled'}>Принять новую ЗПТ</button></div>`,true);
+  const kb=document.getElementById('z_keep'); if(kb) kb.onclick=()=>{ S.zptSeen=S.zptSeen||{}; for(const x of free) S.zptSeen[x.p.id]=x.z; save(`ЗПТ из калькуляций просмотрена, оставлена прежняя: ${free.length} изделий`); closeDlg(); render(); };
+  z_go.onclick=()=>{ if(!confirm(`Принять новую ЗПТ у ${pl.length} изделий?`)) return; const date=z_date.value||today();
+    const ev={id:'e'+Date.now().toString(36),date,kind:'apply',title:`ЗПТ из калькуляций цеха 2: ${pl.length} изделий`,
+      undo:{zptState:Object.fromEntries(pl.map(x=>[x.p.id,{zpt:x.p.zpt,zptItems:clone(x.p.zptItems||[]),zptAck:x.p.zptAck??null}]))},costs:Object.fromEntries(S.prods.map(p=>[p.id,R(cost(p).total,4)]))};
+    S.zptSeen=S.zptSeen||{};
+    for(const x of pl){ const p=x.p;
+      if(x.kind==='free'){ const id=calcByArt(p.art); if(id){ p.zptItems=[{id,qty:1,v:x.z}]; p.zpt=0; } else p.zpt=R(x.z,2); S.zptSeen[p.id]=x.z; }
+      for(const it of p.zptItems||[]){ const v=zptVal(it); if(v!=null) it.v=v; }
+      if((p.zptItems||[]).length) p.zptAck=R(zptTotal(p),4); }
     S.events.push(ev); save(ev.title); closeDlg(); render();
     // сразу к ценам, которые перестали покрывать расходы
     if(low.length){ toast(`ЗПТ обновлена. Наценка ниже порога у ${low.length} — пересмотрите цены`); dlgReprice(); } else toast('ЗПТ обновлена, наценка в порядке'); };
@@ -511,6 +575,7 @@ function undoEvent(id){
   const u=ev.undo;
   if(u.cny!=null) S.settings.cny=u.cny;
   if(u.zpt) for(const p of S.prods) if(u.zpt[p.id]!=null) p.zpt=u.zpt[p.id];
+  if(u.zptState) for(const p of S.prods){ const z=u.zptState[p.id]; if(z){ p.zpt=z.zpt; p.zptItems=z.zptItems; if(z.zptAck==null) delete p.zptAck; else p.zptAck=z.zptAck; } }
   if(u.mats) for(const [c,x] of Object.entries(S.mats)){ if(u.mats[c]!=null) x.inp=u.mats[c]; if(x.hist) x.hist=x.hist.filter(h=>h.eventId!==id); }
   if(u.prices) for(const p of S.prods) if(u.prices[p.id]!=null){ p.price=u.prices[p.id]; p.hist=(p.hist||[]).filter(h=>h.eventId!==id); }
   S.events=S.events.filter(e=>e.id!==id); save(`Отменено: ${ev.title}`); render(); toast('Отменено');
@@ -593,7 +658,8 @@ function exportExcel(){
   const b=[row(['Состав изделий'],'h'),row([]),row(['Артикул','Материал','Раздел','Упаковка','Количество','Ед.','Штук в упаковке','На изделие','Цена, ₽/ед.','Сумма, ₽'],'th')];
   for(const p of S.prods){ b.push(row([p.art,p.name],'b')); for(const it of p.items){ const m=M(it.m); if(!m) continue; const q=itemQty(p,it), pz=matPrice(m);
     b.push(row(['',m.name,SECT[m.sect],it.lvl?LVL[it.lvl]:'',it.lvl?R(it.qp,6):R(it.q,6),m.unit,it.lvl?p[LVLK[it.lvl]]:'',R(q,6),R(pz,4),R(q*pz,4)])); }
-    b.push(row(['','ЗПТ','','','','','','','',R(cost(p).zpt,4)])); }
+    for(const it of p.zptItems||[]){ const r=calcRec(it.id), v=zptVal(it); b.push(row(['','ЗПТ: калькуляция '+(r?r[0]+' · '+r[1]:'(не найдена)'),'Калькуляции','',it.qty,'шт','',it.qty,v!=null?R(v,4):'',v!=null?R(v*it.qty,4):''])); }
+    b.push(row(['','ЗПТ итого (в т.ч. вручную '+nf(p.zpt)+')','','','','','','','',R(cost(p).zpt,4)])); }
   const c=[row([`Материалы, курс юаня ${S.settings.cny}`],'h'),row([]),row(['Материал','Раздел','Ед.','Цена поставщика','Валюта','Множитель','Добавка','Цена, ₽/ед.','Дата цены','Как в Excel'],'th')];
   for(const m of Object.values(S.mats)) c.push(row([m.name,SECT[m.sect],m.unit,m.inp,m.cur==='CNY'?'юань':'рубль',m.k,m.add||0,R(matPrice(m),4),fd(m.date),m.ktext||'']));
   const xml=`<?xml version="1.0" encoding="UTF-8"?><?mso-application progid="Excel.Sheet"?><Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"><Styles><Style ss:ID="h"><Font ss:Bold="1" ss:Size="12"/></Style><Style ss:ID="th"><Font ss:Bold="1"/><Interior ss:Color="#EEF1F6" ss:Pattern="Solid"/><Alignment ss:WrapText="1" ss:Vertical="Top"/></Style><Style ss:ID="b"><Font ss:Bold="1"/></Style></Styles>${sheet('Цены',a,[110,330,75,75,70,70,85,60,80,90,80,60,330])}${sheet('Состав',b,[110,330,140,110,70,50,60,70,70,70])}${sheet('Материалы',c,[330,150,60,80,60,70,60,80,70,330])}</Workbook>`;
