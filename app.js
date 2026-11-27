@@ -1,7 +1,7 @@
 'use strict';
 /* Оболочка «Цены на продукцию»: главная, разделы (цены, калькуляции, расценки цехов), общая копия, автообновление.
    Разделы — отдельные страницы во фреймах: у каждого свои данные в хранилище браузера, связь — через него же. */
-const APP_VERSION = 5;
+const APP_VERSION = 6;
 const APP_BUILT = "2026-11-27";
 const DEFAULT_UPDATE_URL = "https://kalashmak.github.io/ceny-produkcii/";
 const THEME = "/* Общая тема всех разделов программы «Цены на продукцию» */\n:root{\n  --bg:#f3f5f9; --panel:#fff; --ink:#152033; --muted:#64708a; --line:#e3e7ef; --soft:#f7f8fb;\n  --accent:#2f5bd8; --accent-soft:#ebf0ff; --ok:#16804a; --ok-soft:#e7f6ee;\n  --warn:#a35a00; --warn-soft:#fff5e6; --err:#c42b33; --err-soft:#fdecec; --radius:14px;\n}\nbody{font:14px/1.5 \"Segoe UI Variable Text\",\"Segoe UI\",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-font-smoothing:antialiased}\n.card{border-color:var(--line);box-shadow:0 1px 2px rgba(20,32,60,.04),0 2px 8px rgba(20,32,60,.03)}\n.btn{border-radius:10px;transition:background .15s,border-color .15s,box-shadow .15s}\n.btn:hover{background:var(--soft)}\n.btn.pri{box-shadow:0 1px 2px rgba(47,91,216,.3)}\n.btn.pri:hover{background:#2850c4}\ninput[type=text],input[type=number],input[type=date],select,textarea{border-radius:9px;border-color:#d4d9e3;transition:border-color .15s,box-shadow .15s}\ninput:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(47,91,216,.15)}\nth{text-transform:none;letter-spacing:.01em;background:#f6f7fa}\ntbody tr.click:hover td{background:#f4f7ff}\ndialog{border-radius:16px;box-shadow:0 24px 70px rgba(15,25,45,.28)}\ndialog::backdrop{background:rgba(18,26,42,.42);backdrop-filter:blur(2px)}\n.msg{border-radius:10px}\n.stat b{font-size:24px;letter-spacing:-.01em}\n.banner{gap:12px}\n.banner.zpt{background:#fff4e2;color:#7a4300;border-bottom:1px solid #f1d39f}\n.banner .bi{display:inline-grid;place-items:center;min-width:30px;height:24px;border-radius:7px;background:#ffd58a;color:#6b3a00;font-weight:700;font-size:12px}\n.badge.err{animation:none}\n/* внутри общей программы: своя шапка раздела становится второй строкой меню */\nhtml.embed header{height:48px;background:var(--panel);box-shadow:0 1px 0 var(--line)}\nhtml.embed header h1{display:none}\nhtml.embed main{padding-top:18px}\nhtml.embed nav button{font-size:14px}\n\n/* «В работе»: позиция изменена и ждёт подтверждения */\ntr.inwork td, td.inwork{background:#F0DAD5!important}\n.gitem.inwork{background:#F0DAD5}\n.meta-p{margin:14px 0 0;border:1px solid var(--line);border-radius:12px;background:var(--soft);padding:12px 14px}\n.meta-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}\n.meta-st{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#e8ecf3;color:#4a566e}\n.meta-st.w{background:#F0DAD5;color:#7a2e1d}.meta-st.ok{background:var(--ok-soft);color:var(--ok)}\n.meta-who,.meta-mod{font-size:12px;color:var(--muted)}.meta-mod{margin-left:auto}\n.meta-notes{margin:10px 0 8px;max-height:180px;overflow:auto;display:grid;gap:6px}\n.meta-n{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:7px 10px;font-size:13px;white-space:pre-wrap}\n.meta-n span{display:block;font-size:11px;color:var(--muted);margin-bottom:2px}\n.meta-empty{font-size:13px;color:var(--muted)}\n.meta-add{display:flex;gap:8px;align-items:flex-start}.meta-add textarea{flex:1;resize:vertical;font:inherit;border:1px solid #d4d9e3;border-radius:9px;padding:7px 9px}\n.pvc{margin:12px 0;border:1px solid #c6d4f3;background:#f2f6ff;border-radius:12px;padding:12px 14px}\n.pvc-note{margin-top:8px;font-size:12px;color:#34425e;background:#e3ebfd;border-radius:8px;padding:6px 10px}\n\ndialog > .meta-p{margin:0 20px 10px}\n";
@@ -330,8 +330,14 @@ if(DESK){
 show(cur);
 window.__APP_OK=true;
 startLogin();
-setTimeout(()=>{ const last=+LS.get('ceny.updChecked')||0; if(Date.now()-last>3*3600e3) checkUpdate(false); else setUpd('последняя версия, проверено '+new Date(last).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})); },2500);
-setInterval(()=>checkUpdate(false),6*3600e3);
+// Проверка при каждом запуске. Раньше её пропускали, если с прошлой прошло меньше 3 часов, — и заказчица,
+// перезапустив программу «чтобы обновилась», оставалась на старой версии. Плюс скачанная версия включалась
+// только со следующего запуска. Теперь: если при запуске пришла новая версия, а человек ещё ничего не нажимал
+// и не печатал, программа сразу перезапускается в новой версии; иначе — плашка «Перезапустить».
+let UPD_TOUCHED=false;
+['keydown','mousedown','wheel'].forEach(t=>addEventListener(t,()=>{ UPD_TOUCHED=true; },{capture:true,once:true}));
+setTimeout(async()=>{ await checkUpdate(false); if(UPD.ready&&!UPD_TOUCHED) location.reload(); },1500);
+setInterval(()=>checkUpdate(false),3600e3);
 
 /* Копирование и вставка во всех справочниках и карточках.
    В окне программы (Electron) нет меню правой кнопки, а строки таблиц открывают карточку по щелчку —

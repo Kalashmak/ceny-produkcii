@@ -330,5 +330,11 @@ if(DESK){
 show(cur);
 window.__APP_OK=true;
 startLogin();
-setTimeout(()=>{ const last=+LS.get('ceny.updChecked')||0; if(Date.now()-last>3*3600e3) checkUpdate(false); else setUpd('последняя версия, проверено '+new Date(last).toLocaleString('ru-RU',{dateStyle:'short',timeStyle:'short'})); },2500);
-setInterval(()=>checkUpdate(false),6*3600e3);
+// Проверка при каждом запуске. Раньше её пропускали, если с прошлой прошло меньше 3 часов, — и заказчица,
+// перезапустив программу «чтобы обновилась», оставалась на старой версии. Плюс скачанная версия включалась
+// только со следующего запуска. Теперь: если при запуске пришла новая версия, а человек ещё ничего не нажимал
+// и не печатал, программа сразу перезапускается в новой версии; иначе — плашка «Перезапустить».
+let UPD_TOUCHED=false;
+['keydown','mousedown','wheel'].forEach(t=>addEventListener(t,()=>{ UPD_TOUCHED=true; },{capture:true,once:true}));
+setTimeout(async()=>{ await checkUpdate(false); if(UPD.ready&&!UPD_TOUCHED) location.reload(); },1500);
+setInterval(()=>checkUpdate(false),3600e3);
