@@ -12,6 +12,7 @@ UPDATE_URL = 'https://kalashmak.github.io/ceny-produkcii/'
 rd = lambda p: io.open(p, encoding='utf8').read()
 theme = rd(SRC + 'theme.css')
 common = rd(SRC + 'common.js')
+clip = rd(SRC + 'clip.js')
 
 def must(a, o, n, cnt=1):
     assert a.count(o) == cnt, (o[:80], a.count(o)); return a.replace(o, n)
@@ -55,7 +56,7 @@ addEventListener('storage',e=>{ if(e.key==='sdelnye-rascenki-ceh2.zpt'){ loadZpt
 </script>"""
 
 def embed(html, api):
-    head = "<script>if(window.parent!==window)document.documentElement.classList.add('embed')</script><style>" + theme + "</style><script>" + common + "</script></head>"
+    head = "<script>if(window.parent!==window)document.documentElement.classList.add('embed')</script><style>" + theme + "</style><script>" + common + "</script><script>" + clip + "</script></head>"
     html = must(html, '</head>', head)
     return must(html, '</body>', api + '</body>')
 
@@ -78,7 +79,7 @@ for k, h in tpl.items():
         r = subprocess.run(['node', '--check', t.name], capture_output=True, text=True, encoding='utf8'); os.unlink(t.name)
         assert r.returncode == 0, f'{k}, скрипт {i}: {r.stderr[-300:]}'
 built = datetime.date.today().isoformat()
-shell = rd(SRC + 'shell.js')
+shell = rd(SRC + 'shell.js') + '\n' + clip
 shell = must(shell, '/*__VERSION__*/0', str(VERSION))
 shell = must(shell, "/*__BUILT__*/''", json.dumps(built))
 shell = must(shell, "/*__UPDATE_URL__*/''", json.dumps(UPDATE_URL))
